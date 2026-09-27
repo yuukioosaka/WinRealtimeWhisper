@@ -257,7 +257,6 @@ namespace WinRealtimeWhisper
                 Padding = new Padding(10, 6, 10, 4),
                 BackColor = Color.FromArgb(240, 240, 240)
             };
-            editorPanel.Paint += PaintEditorFrame;
             editorPanel.Controls.Add(_lblPending);
             editorPanel.Controls.Add(_txtLive);
 
@@ -266,32 +265,8 @@ namespace WinRealtimeWhisper
             Controls.Add(menu);
         }
 
-        /// <summary>本文の周囲に 1px の淡い枠を描く。</summary>
-        private void PaintEditorFrame(object sender, PaintEventArgs e)
-        {
-            var panel = (Panel)sender;
-            var r = panel.ClientRectangle;
-            var inner = Rectangle.FromLTRB(
-                panel.Padding.Left,
-                panel.Padding.Top,
-                r.Right - panel.Padding.Right,
-                r.Bottom - panel.Padding.Bottom);
-
-            using (var fill = new SolidBrush(Color.White))
-            {
-                e.Graphics.FillRectangle(fill, inner.Left, inner.Top,
-                    Math.Max(0, inner.Width), Math.Max(0, inner.Height));
-            }
-
-            using (var pen = new Pen(Color.FromArgb(200, 200, 200)))
-            {
-                e.Graphics.DrawRectangle(pen, inner.Left - 1, inner.Top - 1,
-                    inner.Width + 1, inner.Height + 1);
-            }
-        }
-
         /// <summary>
-        /// ツールバー/ステータスバーの枠を 1px の淡い線だけにする。
+        /// ツールバーとメニューの境界線を消す。
         /// 既定の System レンダラーは下端に明るいハイライトを描き、白い線に見えるため。
         /// </summary>
         private sealed class EdgeOnlyRenderer : ToolStripProfessionalRenderer
@@ -305,16 +280,17 @@ namespace WinRealtimeWhisper
 
         private sealed class EdgeOnlyColors : ProfessionalColorTable
         {
-            private static readonly Color Edge = Color.FromArgb(200, 200, 200);
+            private static readonly Color Surface = Color.FromArgb(240, 240, 240);
 
-            public override Color ToolStripBorder => Edge;
+            // 枠線は描かせない
+            public override Color ToolStripBorder => Surface;
 
             // ハイライトと影は描かせない（明るい線の正体）
-            public override Color ToolStripGradientBegin => Color.FromArgb(240, 240, 240);
+            public override Color ToolStripGradientBegin => Surface;
 
-            public override Color ToolStripGradientMiddle => Color.FromArgb(240, 240, 240);
+            public override Color ToolStripGradientMiddle => Surface;
 
-            public override Color ToolStripGradientEnd => Color.FromArgb(240, 240, 240);
+            public override Color ToolStripGradientEnd => Surface;
         }
 
         private static Label NewLabel(string text)
