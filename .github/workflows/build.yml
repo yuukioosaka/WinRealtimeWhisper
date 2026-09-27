@@ -1,0 +1,158 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Show dotnet info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore src/WinWhisper.csproj
+
+      - name: Build (Release)
+        run: dotnet build src/WinWhisper.csproj -c Release --no-restore
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "bin/WinWhisper/Release/net48/WinWhisper.exe")) {
+            throw "WinWhisper.exe not found"
+          }
+          Write-Host "--- win-x64 natives ---"
+          Get-ChildItem "bin/WinWhisper/Release/net48/runtimes/win-x64" | Format-Table Name, Length
+
+          # win-x64 以外のネイティブが混ざっていないことを確認する
+          $foreign = Get-ChildItem "bin/WinWhisper/Release/net48/runtimes" -Directory |
+            Where-Object { $_.Name -ne 'win-x64' }
+          if ($foreign) {
+            throw "Non win-x64 natives were shipped: $($foreign.Name -join ', ')"
+          }
+          Write-Host "OK: only win-x64 natives are shipped"
+
+      - name: CLI smoke test
+        shell: pwsh
+        run: |
+          $exe = "bin/WinWhisper/Release/net48/WinWhisper.exe"
+          & $exe --version
+          & $exe --help | Select-Object -First 3
+          & $exe --ui-language ja --help | Select-Object -First 3
+          & $exe --list-devices
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinWhisper-build
+          path: |
+            bin/WinWhisper/Release/net48/**
+            !bin/WinWhisper/Release/net48/**/*.pdb
+          if-no-files-found: error
+
+  installer:
+    name: Build installer
+    needs: build
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build (Release)
+        run: dotnet build src/WinWhisper.csproj -c Release
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          # タグ (v1.2.3) があればそれを、無ければ csproj の <Version> を使う
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF -replace '^refs/tags/v', ''
+          } else {
+            $match = Select-String -Path src/WinWhisper.csproj -Pattern '<Version>([^<]+)</Version>'
+            $version = $match.Matches[0].Groups[1].Value
+          }
+          Write-Host "version = $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "installer\WinWhisper.iss" "/DAppVersion=${{ steps.version.outputs.version }}"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+      - name: List installer
+        run: Get-ChildItem "bin/installer" | Format-Table Name, Length
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinWhisper-installer
+          path: bin/installer/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [build, installer]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v4
+        with:
+          name: WinWhisper-installer
+          path: dist
+
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: WinWhisper-build
+          path: dist/portable
+
+      - name: Zip portable build
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/portable/*" `
+            -DestinationPath "dist/WinWhisper-${{ github.ref_name }}-portable-x64.zip" -Force
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*-setup.exe
+            dist/WinWhisper-${{ github.ref_name }}-portable-x64.zip
+          draft: true
+          generate_release_notes: true

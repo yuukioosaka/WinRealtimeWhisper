@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>WinWhisper</RootNamespace>
+    <AssemblyName>WinWhisper</AssemblyName>
+    <Version>1.0.0</Version>
+    <AssemblyTitle>WinWhisper</AssemblyTitle>
+    <Product>WinWhisper</Product>
+    <Company>WinWhisper</Company>
+    <Description>Real-time transcription with local Whisper (no API key, no network).</Description>
+    <Copyright>Copyright (c) 2026</Copyright>
+    <PlatformTarget>x64</PlatformTarget>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <Deterministic>true</Deterministic>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
+    <NoWarn>$(NoWarn);MSB3270</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Whisper.net" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <!-- Windows では Metal (macOS 用 GPU バックエンド) は使わないので、
+         シェーダと依存を配布物から外す -->
+    <PackageReference Include="Whisper.net.Runtime.Metal" Version="1.9.1">
+      <ExcludeAssets>all</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- win-x64 以外のネイティブを出力から外して配布サイズを抑える。
+         これらは NuGet パッケージの build ターゲットが後から足すため、
+         静的な ItemGroup では消えない。下のターゲットで評価後に取り除く。 -->
+    <Content Remove="runtimes/linux-*/**" />
+    <Content Remove="runtimes/macos-*/**" />
+    <Content Remove="runtimes/win-arm64/**" />
+    <Content Remove="runtimes/win-x86/**" />
+    <None Remove="runtimes/linux-*/**" />
+    <None Remove="runtimes/macos-*/**" />
+    <None Remove="runtimes/win-arm64/**" />
+    <None Remove="runtimes/win-x86/**" />
+  </ItemGroup>
+
+  <!-- macOS 専用の Metal シェーダは Windows 配布物には不要 -->
+  <ItemGroup>
+    <Content Remove="ggml-metal.metal" />
+    <None Remove="ggml-metal.metal" />
+  </ItemGroup>
+
+  <!-- NuGet のビルドターゲットが評価後に足した項目を、コピー前に取り除く。
+       これらは None 項目で、Identity はパッケージ内のパス、出力先は TargetPath
+       メタデータで決まる。そのため TargetPath で絞り込む。 -->
+  <Target Name="DropForeignRuntimes" BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <_ForeignRuntime Include="@(None)"
+          Condition="'%(None.TargetPath)' != '' AND $([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/win-x64/'))" />
+      <None Remove="@(_ForeignRuntime)" />
+      <_ForeignContent Include="@(Content)"
+          Condition="'%(Content.TargetPath)' != '' AND $([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/win-x64/'))" />
+      <Content Remove="@(_ForeignContent)" />
+      <None Remove="ggml-metal.metal" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <!-- tools/SmokeTest から内部クラスを直接検証できるようにする -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>SmokeTest</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

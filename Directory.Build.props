@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    リポジトリ直下の bin/ と obj/ にビルド成果物をまとめる。
+    MSBuild は Directory.Build.props を Microsoft.Common.props より前に読むため、
+    BaseIntermediateOutputPath を警告なく設定できる唯一の場所。
+    CI とインストーラーが参照するパスを安定させるのが目的。
+  -->
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <BaseOutputPath>$(RepoRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+</Project>

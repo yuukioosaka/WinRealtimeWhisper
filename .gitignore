@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+
+# Installer output (bin/ is already ignored, kept explicit for clarity)
+bin/installer/
+
+# Local test artifacts
+*.log
+shot*.png
+help_*.txt
+devices.txt
+
+# User/IDE files
+.vs/
+*.user
+*.suo
+*.DotSettings.user
