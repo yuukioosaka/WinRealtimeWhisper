@@ -73,7 +73,7 @@ jobs:
           if-no-files-found: error
 
   installer:
-    name: Build installer
+    name: Build MSI installer
     needs: build
     runs-on: windows-2022
     steps:
@@ -87,9 +87,6 @@ jobs:
 
       - name: Build (Release)
         run: dotnet build src/WinRealtimeWhisper.csproj -c Release
-
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
 
       - name: Resolve version
         id: version
@@ -105,21 +102,17 @@ jobs:
           Write-Host "version = $version"
           "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Compile installer
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc "installer\WinRealtimeWhisper.iss" "/DAppVersion=${{ steps.version.outputs.version }}"
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+      - name: Build MSI
+        run: dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj -c Release -p:ProductVersion=${{ steps.version.outputs.version }}
 
       - name: List installer
-        run: Get-ChildItem "bin/installer" | Format-Table Name, Length
+        run: Get-ChildItem "bin/WinRealtimeWhisper.Setup/x64/Release" -Filter *.msi | Format-Table Name, Length
 
       - name: Upload installer
         uses: actions/upload-artifact@v5
         with:
           name: WinRealtimeWhisper-installer
-          path: bin/installer/*.exe
+          path: bin/WinRealtimeWhisper.Setup/x64/Release/*.msi
           if-no-files-found: error
 
   release:
@@ -152,7 +145,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*-setup.exe
+            dist/*-setup.msi
             dist/WinRealtimeWhisper-${{ github.ref_name }}-portable-x64.zip
           draft: true
           generate_release_notes: true

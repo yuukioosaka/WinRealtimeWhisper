@@ -1,0 +1,45 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+  <PropertyGroup>
+    <OutputName>WinRealtimeWhisper-$(ProductVersion)-setup</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+
+    <!-- 既定値。CI とローカルビルドは -p:ProductVersion=X.Y.Z で上書きする。 -->
+    <ProductVersion Condition="'$(ProductVersion)' == ''">1.0.0</ProductVersion>
+
+    <!-- アプリのビルド出力。リポジトリ直下の bin/ に集約されている前提。 -->
+    <AppSourceDir Condition="'$(AppSourceDir)' == ''">$(MSBuildThisFileDirectory)..\..\bin\WinRealtimeWhisper\Release\net48</AppSourceDir>
+    <RepoRootDir>$(MSBuildThisFileDirectory)..\..\</RepoRootDir>
+
+    <!-- WiX のプリプロセッサには MSBuild プロパティを明示的に渡す必要がある。 -->
+    <DefineConstants>ProductVersion=$(ProductVersion);AppSourceDir=$(AppSourceDir);RepoRootDir=$(RepoRootDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <!--
+    アプリ本体のファイルを取り込む。出力フォルダの中身が変わっても追従するよう、
+    ComponentGroup はビルド時に生成する。WiX の Files 要素はワイルドカードを
+    再帰展開するので、ここではディレクトリ階層だけを補う。
+  -->
+  <Target Name="ScanAppFiles" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('$(AppSourceDir)\WinRealtimeWhisper.exe')"
+           Text="アプリのビルド出力が見つかりません: $(AppSourceDir)。先に dotnet build src/WinRealtimeWhisper.csproj -c Release を実行してください。" />
+
+    <WriteLinesToFile File="$(IntermediateOutputPath)AppFiles.wxs"
+                      Lines="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;;&lt;Wix xmlns=&quot;http://wixtoolset.org/schemas/v4/wxs&quot;&gt;;  &lt;Fragment&gt;;    &lt;ComponentGroup Id=&quot;AppFiles&quot; Directory=&quot;INSTALLFOLDER&quot;&gt;;      &lt;Files Include=&quot;$(AppSourceDir)\**&quot; /&gt;;    &lt;/ComponentGroup&gt;;  &lt;/Fragment&gt;;&lt;/Wix&gt;"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true"
+                      Encoding="UTF-8" />
+  </Target>
+
+  <!-- 生成した .wxs をコンパイル対象に含める。 -->
+  <ItemGroup>
+    <Compile Include="$(IntermediateOutputPath)AppFiles.wxs" />
+  </ItemGroup>
+
+</Project>

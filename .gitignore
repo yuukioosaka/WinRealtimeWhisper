@@ -2,14 +2,16 @@
 bin/
 obj/
 
-# Installer output (bin/ is already ignored, kept explicit for clarity)
+# WiX (installer) output
 bin/installer/
+bin/WinRealtimeWhisper.Setup/
 
 # Local test artifacts
 *.log
 shot*.png
 help_*.txt
 devices.txt
+msi_run.txt
 
 # User/IDE files
 .vs/

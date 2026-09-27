@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WinRealtimeWhisper の MSI インストーラー定義（WiX Toolset 5）。
+
+  アプリ本体のファイル一覧は手書きしない。ビルド時にアプリの出力フォルダを
+  取り込んで生成する（WinRealtimeWhisper.Setup.wixproj の ScanAppFiles を参照）。
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Package Name="WinRealtimeWhisper"
+           Manufacturer="WinRealtimeWhisper"
+           Version="$(ProductVersion)"
+           UpgradeCode="7D2B4F16-9A3C-4E58-B0D1-2C6E8A5F4937"
+           Scope="perMachine"
+           Compressed="yes"
+           Codepage="65001"
+           Language="1041">
+
+    <MajorUpgrade DowngradeErrorMessage="!([ProductName]) のより新しいバージョンが既にインストールされています。" />
+
+    <!--
+      Windows 11 のみを対象にする。VersionNT / WindowsBuild は Win10 以降
+      603 / 9600 で固定されるため、インストーラー自身でレジストリから
+      ビルド番号を読んで判定する。
+    -->
+    <Launch
+      Condition="Installed OR (WIN11BUILD &gt;= 22000)"
+      Message="WinRealtimeWhisper は Windows 11 以降でのみ動作します。" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+
+    <!-- Windows 11 のビルド番号を読み取る。VersionNT / WindowsBuild は
+         Win10 以降 603 / 9600 で固定されるため、ビルド番号で判定する。 -->
+    <Property Id="WIN11BUILD">
+      <RegistrySearch Id="Win11BuildSearch"
+                      Root="HKLM"
+                      Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+                      Name="CurrentBuild"
+                      Type="raw" />
+    </Property>
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="WinRealtimeWhisper" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="WinRealtimeWhisper" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
+    <Feature Id="MainFeature" Title="WinRealtimeWhisper" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="DocsFiles" />
+      <ComponentGroupRef Id="Shortcuts" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <!--
+      アンインストール時に設定・ログ（必要ならモデル）を消すためのフック。
+      UI から切り替えられるようにしておく。
+    -->
+    <Property Id="REMOVEDATA" Secure="yes" />
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuLink"
+                  Name="WinRealtimeWhisper"
+                  Description="リアルタイム文字起こし"
+                  Target="[INSTALLFOLDER]WinRealtimeWhisper.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveProgramsFolder" On="uninstall" />
+        <!-- HKCU のキーは、別の利用者がアンインストールしても消せるようにするための定石。 -->
+        <RegistryValue Root="HKCU" Key="Software\WinRealtimeWhisper"
+                       Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="*">
+        <Shortcut Id="DesktopLink"
+                  Name="WinRealtimeWhisper"
+                  Description="リアルタイム文字起こし"
+                  Target="[INSTALLFOLDER]WinRealtimeWhisper.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\WinRealtimeWhisper"
+                       Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Directory Id="DocsFolder" Name="docs" />
+    </DirectoryRef>
+
+    <ComponentGroup Id="DocsFiles" Directory="DocsFolder">
+      <Files Include="$(RepoRootDir)README.md" />
+      <Files Include="$(RepoRootDir)README.ja.md" />
+    </ComponentGroup>
+  </Fragment>
+
+  <!--
+    アプリ本体の ComponentGroup はここでは書かず、ビルド時に生成する。
+    詳細は WinRealtimeWhisper.Setup.wixproj の ScanAppFiles ターゲットを参照。
+  -->
+
+  <Fragment>
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Fragment>
+
+</Wix>

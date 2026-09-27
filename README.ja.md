@@ -32,8 +32,8 @@
 | `src/NativeConsole.cs` | WinExe を親コンソールに接続 |
 | `Directory.Build.props` | `bin/` と `obj/` をリポジトリ直下にまとめる |
 | `tools/SmokeTest` | 変換・区切り・推論・ダイアログを確認するテスト（本番ビルド対象外） |
-| `installer/WinRealtimeWhisper.iss` | インストーラーの Inno Setup スクリプト |
-| `installer/license.txt` | インストーラーが表示するライセンス |
+| `installer/WinRealtimeWhisper.Setup` | インストーラーの WiX プロジェクト（MSI） |
+| `LICENSE` | ライセンス（MIT） |
 | `.github/workflows/build.yml` | CI（ビルド・CLI スモークテスト・インストーラー・リリース） |
 
 ## ビルド
@@ -51,25 +51,29 @@ dotnet build src/WinRealtimeWhisper.csproj -c Release
 配布サイズを抑えるため、`src/WinRealtimeWhisper.csproj` は win-x64 以外のネイティブを除外し、
 macOS 専用の Metal シェーダも落としています（合計 20MB → 約 4.6MB）。
 
-### インストーラー
+### インストーラー（MSI）
 
-[Inno Setup 6](https://jrsoftware.org/isinfo.php) が必要です。
+[WiX Toolset 5](https://wixtoolset.org/) を使います。必要なものは NuGet から
+復元されるので、別途インストールは不要です。
 
 ```powershell
 dotnet build src/WinRealtimeWhisper.csproj -c Release
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" `
-  -DAppVersion=1.0.0 installer\WinRealtimeWhisper.iss
+dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj `
+  -c Release -p:ProductVersion=1.0.0
 ```
 
-出力は `bin\installer\WinRealtimeWhisper-1.0.0-setup.exe` です。
-既定はユーザー単位インストール（`PrivilegesRequired=lowest`）なので管理者権限は不要ですが、
-ダイアログから管理者インストールも選べます。セットアップの言語は日本語 / 英語から選べます。
+出力は `bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi` です。
+MSI なので管理者権限が必要です（`Program Files` にインストールします）。
 
-動作確認にはサイレントインストールが便利です。
+アプリ本体のファイル一覧は手書きしていません。WiX の `Files` 要素が
+アプリの出力フォルダ（`bin\WinRealtimeWhisper\Release\net48`）を再帰的に取り込むため、
+依存関係が増えてもインストーラー側の修正は不要です。
+
+動作確認にはサイレントインストールが便利です（管理者権限で実行してください）。
 
 ```powershell
-.\bin\installer\WinRealtimeWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winrealtimewhisper
-C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
+msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
 ```
 
 ### CI（GitHub Actions）
@@ -79,8 +83,8 @@ C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
 | ジョブ | 内容 |
 | --- | --- |
 | `build` | Release ビルド、win-x64 以外のネイティブが混ざっていないことの検証、CLI スモークテスト、成果物のアップロード |
-| `installer` | Inno Setup でインストーラーをビルドしてアップロード |
-| `release` | `v*` タグで、セットアップとポータブル ZIP をドラフト Release に添付 |
+| `installer` | WiX で MSI をビルドしてアップロード |
+| `release` | `v*` タグで、MSI とポータブル ZIP をドラフト Release に添付 |
 
 バージョンはタグビルドならタグから、それ以外は `src/WinRealtimeWhisper.csproj` の `<Version>` から取ります。
 リリース手順は次のとおりです。

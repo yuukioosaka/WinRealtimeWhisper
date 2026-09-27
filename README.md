@@ -33,8 +33,8 @@ Source code lives under `src/`.
 | `src/NativeConsole.cs` | Attaches the WinExe to the parent console |
 | `Directory.Build.props` | Keeps `bin/` and `obj/` at the repository root |
 | `tools/SmokeTest` | Tests for conversion, segmentation, inference, and dialogs (not part of the app build) |
-| `installer/WinRealtimeWhisper.iss` | Inno Setup script for the installer |
-| `installer/license.txt` | License shown by the installer |
+| `installer/WinRealtimeWhisper.Setup` | WiX project that builds the MSI installer |
+| `LICENSE` | License (MIT) |
 | `.github/workflows/build.yml` | CI: build, CLI smoke tests, installer, release |
 
 ## Build
@@ -53,26 +53,29 @@ copied into `runtimes/win-x64/` at build time.
 To keep the distribution small, `src/WinRealtimeWhisper.csproj` keeps only the win-x64 natives
 (about 4.6 MB total instead of ~20 MB) and drops the macOS-only Metal shader.
 
-### Installer
+### Installer (MSI)
 
-[Inno Setup 6](https://jrsoftware.org/isinfo.php) is required.
+This uses [WiX Toolset 5](https://wixtoolset.org/). Everything it needs is restored
+from NuGet, so there is nothing extra to install.
 
 ```powershell
 dotnet build src/WinRealtimeWhisper.csproj -c Release
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" `
-  -DAppVersion=1.0.0 installer\WinRealtimeWhisper.iss
+dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj `
+  -c Release -p:ProductVersion=1.0.0
 ```
 
-The installer lands in `bin\installer\WinRealtimeWhisper-1.0.0-setup.exe`.
-It installs per-user by default (`PrivilegesRequired=lowest`), so no admin rights
-are needed; an elevated install is offered through the dialog if you want it.
-The setup language is selectable between Japanese and English.
+The installer lands in `bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi`.
+Because it is an MSI it needs administrator rights (it installs into `Program Files`).
 
-A silent install is useful for testing:
+The list of application files is not written by hand. WiX's `Files` element picks up
+the app output folder (`bin\WinRealtimeWhisper\Release\net48`) recursively, so adding a
+dependency does not require touching the installer.
+
+A silent install is useful for testing (run it from an elevated prompt):
 
 ```powershell
-.\bin\installer\WinRealtimeWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winrealtimewhisper
-C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
+msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
 ```
 
 ### Continuous integration
@@ -82,8 +85,8 @@ C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
 | Job | What it does |
 | --- | --- |
 | `build` | Builds Release, asserts only win-x64 natives shipped, runs CLI smoke tests, uploads the build output |
-| `installer` | Compiles the Inno Setup installer and uploads it |
-| `release` | On a `v*` tag, attaches the setup and a portable ZIP to a draft GitHub Release |
+| `installer` | Builds the MSI with WiX and uploads it |
+| `release` | On a `v*` tag, attaches the MSI and a portable ZIP to a draft GitHub Release |
 
 The version comes from the tag on a tag build, and from `<Version>` in
 `src/WinRealtimeWhisper.csproj` otherwise. To cut a release:
