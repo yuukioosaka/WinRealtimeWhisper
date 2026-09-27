@@ -232,11 +232,3 @@ The following line is recorded every 2 seconds.
   **Speakers + microphone** opens loopback and the default microphone together.
 - With **Speakers + microphone**, the same sound from both sources can be
   recognized twice.
-
-## Appendix: other approaches considered
-
-| Approach | Outcome |
-| --- | --- |
-| Azure Speech SDK | Cloud recognition. Requires an API key and network |
-| `Microsoft.Windows.AI.Speech` | Local, key-free recognition, but the projection DLL ships only in Experimental builds of `Microsoft.WindowsAppSDK`. MSIX packaging is mandatory and an unpackaged EXE fails with `0x8007007E` |
-| **Whisper.net** | **Adopted**. Works on net48 with no keys or network |
