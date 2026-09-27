@@ -21,10 +21,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -64,7 +64,7 @@ jobs:
           & $exe --list-devices
 
       - name: Upload build output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: WinWhisper-build
           path: |
@@ -78,10 +78,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -116,7 +116,7 @@ jobs:
         run: Get-ChildItem "bin/installer" | Format-Table Name, Length
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: WinWhisper-installer
           path: bin/installer/*.exe
@@ -131,13 +131,13 @@ jobs:
       contents: write
     steps:
       - name: Download installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: WinWhisper-installer
           path: dist
 
       - name: Download build output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: WinWhisper-build
           path: dist/portable
