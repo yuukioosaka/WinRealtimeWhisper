@@ -160,7 +160,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*-setup.msi
+            dist/*.msi
             dist/WinRealtimeWhisper-${{ github.ref_name }}-portable-x64.zip
           draft: true
           generate_release_notes: true
