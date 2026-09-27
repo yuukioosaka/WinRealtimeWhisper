@@ -39,6 +39,14 @@ namespace WinWhisperSmokeTest
                 {
                     exit = Shot.Run();
                 }
+                else if (args.Length > 1 && args[1] == "shotmain")
+                {
+                    exit = Shot.RunMain();
+                }
+                else if (args.Length > 1 && args[1] == "editor")
+                {
+                    exit = Shot.EditorCheck();
+                }
                 else if (args.Length > 1 && args[1] == "e2e")
                 {
                     exit = IntegrationTest.Run(modelPath);

@@ -40,10 +40,16 @@ namespace WinWhisper
         private ToolStripButton _btnStop;
         private ToolStripLabel _lblStatus;
         private ToolStripLabel _lblTimer;
-        private Label _txtLive;
+        private TextBox _txtLive;
         private Label _lblPending;
         private ProgressBar _levelBar;
         private ToolStripLabel _lblActivity;
+
+        /// <summary>本文の編集欄。スモークテストが表示内容を確認するために公開している。</summary>
+        internal TextBox EditorBox
+        {
+            get { return _txtLive; }
+        }
 
         /// <summary>固定の言語。UI からは変更できない。</summary>
         private const string FixedLanguage = "ja";
@@ -217,16 +223,20 @@ namespace WinWhisper
             _toolbar.Items.Add(_lblActivity);
             _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(0, 0, 0, 0) });
 
-            // 本文は Label で描く。RichTextBox の枠は上辺が白く光って見えるため使わない。
-            _txtLive = new Label
+            // 本文は読み取り専用の TextBox にする（選択・コピーを可能にするため）。
+            // 枠は上辺が白く光って見えるので BorderStyle は None にし、親パネル側で描く。
+            _txtLive = new TextBox
             {
                 Dock = DockStyle.Fill,
-                AutoSize = false,
+                ReadOnly = true,
+                Multiline = true,
+                WordWrap = true,
+                BorderStyle = BorderStyle.None,
                 BackColor = Color.White,
                 ForeColor = Color.Black,
                 Font = new Font("Yu Gothic UI", 12f),
-                UseMnemonic = false,
-                TextAlign = ContentAlignment.TopLeft
+                ScrollBars = ScrollBars.Vertical,
+                ShortcutsEnabled = true
             };
 
             _lblPending = new Label
@@ -256,7 +266,7 @@ namespace WinWhisper
             Controls.Add(menu);
         }
 
-        /// <summary>本文の周囲に 1px の淡い枠を描く。RichTextBox の枠の代わり。</summary>
+        /// <summary>本文の周囲に 1px の淡い枠を描く。</summary>
         private void PaintEditorFrame(object sender, PaintEventArgs e)
         {
             var panel = (Panel)sender;
@@ -788,31 +798,67 @@ namespace WinWhisper
                 }
             }
 
+            // 確定行と暫定行をまとめる（暫定行は末尾に付く）
             string confirmed = _display.ToString();
             bool pending = !string.IsNullOrEmpty(_pendingText);
 
+            // 末尾が見えるよう、入りきらない分は先頭から切り落とす。
             string body = pending && confirmed.Length > 0
                 ? confirmed + Environment.NewLine + _pendingText
                 : confirmed + _pendingText;
 
-            // 末尾が見えるよう、入りきらない分は先頭を切り落とす
-            _txtLive.Text = FitToHeight(body, _txtLive.ClientSize);
-
-            // 暫定行は青く見せたいので、その行だけ別ラベルに載せる
-            if (pending && confirmed.Length > 0 && _txtLive.Text == body)
+            if (_session != null && _session.Lines.Count > 0)
             {
-                _txtLive.Text = confirmed;
-                _lblPending.Text = _pendingText;
-                _lblPending.Height = _lblPending.PreferredHeight;
+                string trimmed = FitToHeight(body, _txtLive.ClientSize);
+                SetLiveText(trimmed);
             }
             else
             {
-                _lblPending.Text = string.Empty;
-                _lblPending.Height = 0;
+                SetLiveText(body);
+            }
+
+            _lblPending.Text = string.Empty;
+            _lblPending.Height = 0;
+        }
+
+        /// <summary>
+        /// 本文を差し替える。テキストを書き換えると選択が外れ、
+        /// コピー操作の途中で選択が消えてしまうため、変わるときだけ設定する。
+        /// </summary>
+        private void SetLiveText(string value)
+        {
+            if (_txtLive.Text == value)
+            {
+                return;
+            }
+
+            int selStart = _txtLive.SelectionStart;
+            int selLength = _txtLive.SelectionLength;
+
+            _txtLive.Text = value;
+
+            if (selLength > 0)
+            {
+                if (selStart > _txtLive.TextLength)
+                {
+                    selStart = _txtLive.TextLength;
+                }
+
+                if (selStart + selLength > _txtLive.TextLength)
+                {
+                    selLength = _txtLive.TextLength - selStart;
+                }
+
+                _txtLive.Select(selStart, selLength);
+            }
+            else
+            {
+                _txtLive.SelectionStart = _txtLive.TextLength;
+                _txtLive.SelectionLength = 0;
             }
         }
 
-        /// <summary>本文が入りきらないとき、末尾が残るよう先頭の行を落とす。</summary>
+        /// <summary>本文が入りきらないとき、末尾が残るよう先頭から落とす。</summary>
         private string FitToHeight(string text, Size area)
         {
             if (string.IsNullOrEmpty(text) || area.Width <= 0 || area.Height <= 0)
@@ -820,30 +866,53 @@ namespace WinWhisper
                 return text;
             }
 
-            int usable = area.Height - _lblPending.Height - 8;
-            if (_txtLive.PreferredHeight <= usable)
+            // 読み取り専用の TextBox は表示領域が広いので、行数ではなく実際の高さで判定する。
+            int usable = _txtLive.ClientSize.Height;
+            if (usable <= 0)
             {
                 return text;
             }
 
-            string[] lines = text.Split('\n');
-            for (int start = 1; start < lines.Length; start++)
+            using (var g = _txtLive.CreateGraphics())
             {
-                string candidate = string.Join("\n", lines, start, lines.Length - start);
-                using (var g = _txtLive.CreateGraphics())
-                {
-                    var size = TextRenderer.MeasureText(
-                        g, candidate, _txtLive.Font,
-                        new Size(area.Width, int.MaxValue), TextFormatFlags.TextBoxControl);
+                var limit = new Size(area.Width, int.MaxValue);
+                var flags = TextFormatFlags.TextBoxControl | TextFormatFlags.WordBreak;
 
-                    if (size.Height <= usable)
+                if (TextRenderer.MeasureText(g, text, _txtLive.Font, limit, flags).Height <= usable)
+                {
+                    return text;
+                }
+
+                // 入りきらない分を少しずつ増やし、収まるところを二分探索する。
+                int low = 0;
+                int high = text.Length;
+                while (low < high)
+                {
+                    int mid = low + (high - low) / 2;
+                    string candidate = text.Substring(mid);
+                    int height = TextRenderer.MeasureText(
+                        g, candidate, _txtLive.Font, limit, flags).Height;
+
+                    if (height <= usable)
                     {
-                        return candidate;
+                        high = mid;
+                    }
+                    else
+                    {
+                        low = mid + 1;
                     }
                 }
-            }
 
-            return lines[lines.Length - 1];
+                // 行の途中から始めると読みにくいので、直後の改行まで送る。
+                int start = low;
+                int nextBreak = text.IndexOf('\n', Math.Min(start, text.Length - 1));
+                if (nextBreak >= 0 && nextBreak + 1 < text.Length)
+                {
+                    start = nextBreak + 1;
+                }
+
+                return start > 0 ? text.Substring(start) : text;
+            }
         }
 
         private void OnStatus(object sender, StatusEventArgs e)

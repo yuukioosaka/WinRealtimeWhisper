@@ -44,6 +44,139 @@ namespace WinWhisperSmokeTest
             return 0;
         }
 
+        /// <summary>メイン画面のスクリーンショットを撮り、コントロールの寸法を出す。</summary>
+        public static int RunMain()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            var settings = AppSettings.Load();
+            Loc.Current = settings.ResolveUiLanguage();
+
+            using (var f = new MainForm())
+            {
+                f.Show();
+                Settle();
+
+                Save(f, "shot_main.png");
+                Console.WriteLine("=== main -> shot_main.png");
+                Dump(f, 1);
+
+                f.Hide();
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// 本文が読み取り専用の TextBox として選択・コピーできること、
+        /// 長い本文で末尾が見えることを確認する。
+        /// </summary>
+        public static int EditorCheck()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            var settings = AppSettings.Load();
+            Loc.Current = settings.ResolveUiLanguage();
+
+            int exit = 0;
+            using (var f = new MainForm())
+            {
+                f.Show();
+                Settle();
+
+                var box = FindTextBox(f);
+                if (box == null)
+                {
+                    Console.WriteLine("EDITOR FAIL: 本文の TextBox が見つかりません");
+                    return 1;
+                }
+
+                // 見た目の確認用に、コントロールの上に実際の文字を乗せて描く
+                var live = (MainForm)f;
+                live.EditorBox.Text = string.Join(Environment.NewLine, new[]
+                {
+                    "こんにちは、これはリアルタイム文字起こしの表示テストです。",
+                    "テキストは選択してコピーできます。",
+                    "Ctrl+A で全選択、Ctrl+C でコピーできます。",
+                    "行をまたいでドラッグして選択することもできます。",
+                    "この行は選択状態の見た目を確認するためのものです。"
+                });
+                live.EditorBox.Select(60, 24);
+                live.EditorBox.Select(0, 0);
+                Application.DoEvents();
+                Settle();
+                Save(f, "shot_main_text.png");
+                Console.WriteLine("=== text -> shot_main_text.png");
+                live.EditorBox.Clear();
+                Application.DoEvents();
+
+                Console.WriteLine("readonly=" + box.ReadOnly + " multiline=" + box.Multiline
+                    + " border=" + box.BorderStyle + " shortcuts=" + box.ShortcutsEnabled);
+
+                if (!box.ReadOnly || !box.Multiline)
+                {
+                    Console.WriteLine("EDITOR FAIL: 読み取り専用の複数行 TextBox ではありません");
+                    exit = 1;
+                }
+
+                // 長い本文を入れて、末尾が見える位置に自動スクロールするか確認する
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < 200; i++)
+                {
+                    sb.AppendLine("行 " + i + " の本文がここに入ります。コピーの確認用テキストです。");
+                }
+
+                box.Text = sb.ToString();
+                Application.DoEvents();
+
+                box.Select(0, 12);
+                string copied = box.SelectedText;
+                Console.WriteLine("selected='" + copied + "'");
+                if (copied.Length != 12)
+                {
+                    Console.WriteLine("EDITOR FAIL: 選択ができません");
+                    exit = 1;
+                }
+
+                box.SelectAll();
+                if (box.SelectedText.Length != box.TextLength)
+                {
+                    Console.WriteLine("EDITOR FAIL: 全選択ができません");
+                    exit = 1;
+                }
+
+                box.DeselectAll();
+                Console.WriteLine("firstVisibleLine=" + box.GetFirstCharIndexFromLine(
+                    box.GetLineFromCharIndex(box.GetCharIndexFromPosition(new Point(2, 2)))));
+
+                Console.WriteLine(exit == 0 ? "EDITOR OK" : "EDITOR FAIL");
+            }
+
+            return exit;
+        }
+
+        private static TextBox FindTextBox(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                var box = c as TextBox;
+                if (box != null)
+                {
+                    return box;
+                }
+
+                var found = FindTextBox(c);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
         private static void Save(Form f, string path)
         {
             var b = f.Bounds;
