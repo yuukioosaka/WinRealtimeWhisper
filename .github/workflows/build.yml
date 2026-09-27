@@ -34,23 +34,17 @@ jobs:
       - name: Restore
         run: dotnet restore src/WinRealtimeWhisper.csproj
 
-      - name: Build (Release)
-        run: dotnet build src/WinRealtimeWhisper.csproj -c Release --no-restore
-
-      - name: Regenerate and verify app icon
+      - name: Generate app icon
         shell: pwsh
         run: |
-          # src/app.ico の元は tools/MakeIcon（中身は AppIcons.Draw）。
-          # 生成し直して、コミット済みの .ico と一致することを確かめる。
+          # src/app.ico は tools/MakeIcon が AppIcons.Draw から作る。
+          # PNG エンコーダの出力は環境依存なので、生成物はコミットせず
+          # ビルドのたびにここで作り直す（exe の埋め込みアイコンに使われる）。
           dotnet build tools/MakeIcon/MakeIcon.csproj -c Release
-          Copy-Item src/app.ico "$env:RUNNER_TEMP/app.ico"
           & "./bin/MakeIcon/Release/net48/MakeIcon.exe" src/app.ico
-          $before = (Get-FileHash "$env:RUNNER_TEMP/app.ico" -Algorithm SHA256).Hash
-          $after = (Get-FileHash src/app.ico -Algorithm SHA256).Hash
-          if ($before -ne $after) {
-            throw "src/app.ico is out of date. Run tools/MakeIcon and commit the result."
-          }
-          Write-Host "OK: src/app.ico matches AppIcons.Draw"
+
+      - name: Build (Release)
+        run: dotnet build src/WinRealtimeWhisper.csproj -c Release
 
       - name: Verify build output
         shell: pwsh
@@ -99,6 +93,13 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
+
+      - name: Generate app icon
+        shell: pwsh
+        run: |
+          # MSI の ARPPRODUCTICON が src/app.ico を参照するので先に作る。
+          dotnet build tools/MakeIcon/MakeIcon.csproj -c Release
+          & "./bin/MakeIcon/Release/net48/MakeIcon.exe" src/app.ico
 
       - name: Build (Release)
         run: dotnet build src/WinRealtimeWhisper.csproj -c Release

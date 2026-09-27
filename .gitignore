@@ -16,6 +16,10 @@ msi_run.txt
 # Generated icon output goes to the build tree, not the repo
 bin/MakeIcon/
 
+# Generated icon, produced at build time.
+# PNG encoder output differs per machine, so this is not committed.
+src/app.ico
+
 # User/IDE files
 .vs/
 *.user

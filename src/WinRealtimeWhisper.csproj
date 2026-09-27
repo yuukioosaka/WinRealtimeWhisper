@@ -18,8 +18,10 @@
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     <Deterministic>true</Deterministic>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- exe に埋め込むアイコン。中身は tools/MakeIcon が AppIcons.Draw から生成する。 -->
-    <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- exe に埋め込むアイコン。中身は tools/MakeIcon が AppIcons.Draw から生成する。
+         MakeIcon 自身はこのプロジェクトを参照するので、.ico がまだ無い
+         タイミング（初回ビルド、CI、クリーンビルド）では空にして循環を断つ。 -->
+    <ApplicationIcon Condition="Exists('app.ico')">app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);MSB3270</NoWarn>
   </PropertyGroup>
