@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 1セッション(=1回の録音開始〜停止)の文字起こし結果。
@@ -88,7 +88,7 @@ namespace WinWhisper
         }
     }
 
-    /// <summary>保存先: ドキュメント\WinWhisper\history\session_yyyyMMdd_HHmmss.txt</summary>
+    /// <summary>保存先: ドキュメント\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt</summary>
     internal static class HistoryStore
     {
         public static string RootDirectory
@@ -97,7 +97,7 @@ namespace WinWhisper
             {
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "WinWhisper",
+                    "WinRealtimeWhisper",
                     "history");
             }
         }

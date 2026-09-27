@@ -3,12 +3,12 @@ using System.IO;
 using System.Speech.Synthesis;
 using System.Threading;
 using NAudio.Wave;
-using WinWhisper;
+using WinRealtimeWhisper;
 
-namespace WinWhisperSmokeTest
+namespace WinRealtimeWhisperSmokeTest
 {
     /// <summary>
-    /// WinWhisper の中核（変換 → 区切り → Whisper 推論）を、実際のモデルで確認する。
+    /// WinRealtimeWhisper の中核（変換 → 区切り → Whisper 推論）を、実際のモデルで確認する。
     /// テスト音声は Windows の音声合成で作るため、外部ファイルを用意しなくてよい。
     /// </summary>
     internal static class Program
@@ -70,7 +70,7 @@ namespace WinWhisperSmokeTest
             var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
             string local = AppSettings.ModelDirectory;
 
-            // リポジトリ直下の models/、%LOCALAPPDATA%\WinWhisper\models\ の順に探す
+            // リポジトリ直下の models/、%LOCALAPPDATA%\WinRealtimeWhisper\models\ の順に探す
             foreach (string root in new[] { local, Path.Combine(RepoRoot(dir), "models") })
             {
                 if (!Directory.Exists(root))
@@ -94,7 +94,7 @@ namespace WinWhisperSmokeTest
             var current = dir;
             while (current != null)
             {
-                if (File.Exists(Path.Combine(current.FullName, "WinWhisper.csproj")))
+                if (File.Exists(Path.Combine(current.FullName, "WinRealtimeWhisper.csproj")))
                 {
                     return current.FullName;
                 }
@@ -147,7 +147,7 @@ namespace WinWhisperSmokeTest
         /// <summary>音声合成で日本語 WAV を作り、区切り → 推論まで通す。</summary>
         private static void TestRecognizer(string modelPath)
         {
-            string speechWav = Path.Combine(Path.GetTempPath(), "winwhisper_smoke_speech.wav");
+            string speechWav = Path.Combine(Path.GetTempPath(), "winrealtimewhisper_smoke_speech.wav");
             SynthesizeJapanese(speechWav);
 
             // 実際のループバック相当（48kHz ステレオ float）に変換してから流す

@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// コマンドライン引数の解釈。GUI と共用するため、指定された項目だけを
@@ -64,7 +64,7 @@ namespace WinWhisper
             {
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "WinWhisper",
+                    "WinRealtimeWhisper",
                     "wav");
             }
         }
@@ -304,7 +304,7 @@ namespace WinWhisper
 
         public static void WriteHelp(TextWriter w)
         {
-            if (Loc.Current == WinWhisper.UiLanguage.English)
+            if (Loc.Current == WinRealtimeWhisper.UiLanguage.English)
             {
                 WriteHelpEnglish(w);
             }
@@ -316,14 +316,14 @@ namespace WinWhisper
 
         private static void WriteHelpJapanese(TextWriter w)
         {
-            w.WriteLine("WinWhisper - リアルタイム文字起こし");
+            w.WriteLine("WinRealtimeWhisper - リアルタイム文字起こし");
             w.WriteLine();
             w.WriteLine("使い方:");
-            w.WriteLine("  WinWhisper.exe                        GUI を起動します。");
-            w.WriteLine("  WinWhisper.exe [オプション]           GUI を起動し、設定を上書きします。");
-            w.WriteLine("  WinWhisper.exe -t 60                  60 秒だけ録音して終了します（GUI なし）。");
-            w.WriteLine("  WinWhisper.exe -t 0                   停止操作まで録音します（GUI なし）。");
-            w.WriteLine("  WinWhisper.exe -i speech.wav          音声ファイルを文字起こしします。");
+            w.WriteLine("  WinRealtimeWhisper.exe                        GUI を起動します。");
+            w.WriteLine("  WinRealtimeWhisper.exe [オプション]           GUI を起動し、設定を上書きします。");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 60                  60 秒だけ録音して終了します（GUI なし）。");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 0                   停止操作まで録音します（GUI なし）。");
+            w.WriteLine("  WinRealtimeWhisper.exe -i speech.wav          音声ファイルを文字起こしします。");
             w.WriteLine();
             w.WriteLine("録音と入力:");
             w.WriteLine("  -t, --seconds <秒>      録音する長さ。0 で停止操作まで続けます。");
@@ -335,7 +335,7 @@ namespace WinWhisper
             w.WriteLine("出力:");
             w.WriteLine("  -o, --output <ファイル>  WAV の保存先。");
             w.WriteLine("      --text <ファイル>    文字起こしテキストの保存先。");
-            w.WriteLine("                          省略時は ドキュメント\\WinWhisper\\ に自動命名で保存します。");
+            w.WriteLine("                          省略時は ドキュメント\\WinRealtimeWhisper\\ に自動命名で保存します。");
             w.WriteLine();
             w.WriteLine("認識:");
             w.WriteLine("  -m, --model <名前|パス> ggml モデル。名前だけなら既定のフォルダから探します。");
@@ -354,20 +354,20 @@ namespace WinWhisper
             w.WriteLine("終了コード: 0=成功 / 1=実行時エラー / 2=引数の誤り");
             w.WriteLine();
             w.WriteLine("例:");
-            w.WriteLine("  WinWhisper.exe -t 300 -s speakers -o C:\\tmp\\meeting.wav");
-            w.WriteLine("  WinWhisper.exe -i C:\\tmp\\interview.wav --text C:\\tmp\\interview.txt");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 300 -s speakers -o C:\\tmp\\meeting.wav");
+            w.WriteLine("  WinRealtimeWhisper.exe -i C:\\tmp\\interview.wav --text C:\\tmp\\interview.txt");
         }
 
         private static void WriteHelpEnglish(TextWriter w)
         {
-            w.WriteLine("WinWhisper - Real-time transcription");
+            w.WriteLine("WinRealtimeWhisper - Real-time transcription");
             w.WriteLine();
             w.WriteLine("Usage:");
-            w.WriteLine("  WinWhisper.exe                       Launch the GUI.");
-            w.WriteLine("  WinWhisper.exe [options]             Launch the GUI with overrides.");
-            w.WriteLine("  WinWhisper.exe -t 60                 Record for 60 seconds, then exit (no GUI).");
-            w.WriteLine("  WinWhisper.exe -t 0                  Record until stopped (no GUI).");
-            w.WriteLine("  WinWhisper.exe -i speech.wav         Transcribe an audio file.");
+            w.WriteLine("  WinRealtimeWhisper.exe                       Launch the GUI.");
+            w.WriteLine("  WinRealtimeWhisper.exe [options]             Launch the GUI with overrides.");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 60                 Record for 60 seconds, then exit (no GUI).");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 0                  Record until stopped (no GUI).");
+            w.WriteLine("  WinRealtimeWhisper.exe -i speech.wav         Transcribe an audio file.");
             w.WriteLine();
             w.WriteLine("Recording and input:");
             w.WriteLine("  -t, --seconds <sec>     Recording length. 0 keeps going until stopped.");
@@ -379,7 +379,7 @@ namespace WinWhisper
             w.WriteLine("Output:");
             w.WriteLine("  -o, --output <file>     Where to save the WAV.");
             w.WriteLine("      --text <file>       Where to save the transcript.");
-            w.WriteLine("                          Defaults to Documents\\WinWhisper\\ with an automatic name.");
+            w.WriteLine("                          Defaults to Documents\\WinRealtimeWhisper\\ with an automatic name.");
             w.WriteLine();
             w.WriteLine("Recognition:");
             w.WriteLine("  -m, --model <name|path> ggml model. A bare name is looked up in the default folder.");
@@ -398,8 +398,8 @@ namespace WinWhisper
             w.WriteLine("Exit codes: 0=success / 1=runtime error / 2=bad arguments");
             w.WriteLine();
             w.WriteLine("Examples:");
-            w.WriteLine("  WinWhisper.exe -t 300 -s speakers -o C:\\tmp\\meeting.wav");
-            w.WriteLine("  WinWhisper.exe -i C:\\tmp\\interview.wav --text C:\\tmp\\interview.txt");
+            w.WriteLine("  WinRealtimeWhisper.exe -t 300 -s speakers -o C:\\tmp\\meeting.wav");
+            w.WriteLine("  WinRealtimeWhisper.exe -i C:\\tmp\\interview.wav --text C:\\tmp\\interview.txt");
         }
 
         /// <summary>
@@ -472,7 +472,7 @@ namespace WinWhisper
             }
 
             Loc.Current = options != null && (options.RunsHeadless || options.HelpRequested || options.VersionRequested)
-                ? WinWhisper.UiLanguage.English
+                ? WinRealtimeWhisper.UiLanguage.English
                 : AppSettings.Load().ResolveUiLanguage();
         }
 

@@ -2,7 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 実行時にアイコンを描く。外部の .ico を同梱せずに済ませるため。

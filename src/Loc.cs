@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>UI の表示言語。設定とコマンドラインから選ぶ。</summary>
     internal enum UiLanguage
@@ -148,8 +148,8 @@ namespace WinWhisper
             new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // メイン画面
-            { "app.title", "WinWhisper - リアルタイム文字起こし" },
-            { "app.title.withState", "WinWhisper - リアルタイム文字起こし  [{0} / {1}]" },
+            { "app.title", "WinRealtimeWhisper - リアルタイム文字起こし" },
+            { "app.title.withState", "WinRealtimeWhisper - リアルタイム文字起こし  [{0} / {1}]" },
             { "menu.file", "ファイル(&F)" },
             { "menu.file.start", "録音開始(&R)" },
             { "menu.file.stop", "録音停止(&S)" },
@@ -191,7 +191,7 @@ namespace WinWhisper
 
             { "dialog.recordingTitle", "録音中" },
             { "dialog.recordingBody", "録音中です。停止して終了しますか？" },
-            { "dialog.errorTitle", "WinWhisper" },
+            { "dialog.errorTitle", "WinRealtimeWhisper" },
             { "dialog.unknownError", "不明なエラーが発生しました。" },
             { "dialog.logOpenFailed", "ログファイルを作成できませんでした。" },
             { "status.noModel", "モデルが無いため開始できません" },
@@ -209,7 +209,7 @@ namespace WinWhisper
             { "dialog.downloadFailedBody", "{0}\n\nログ: {1}" },
 
             { "about.title", "バージョン情報" },
-            { "about.product", "WinWhisper {0}" },
+            { "about.product", "WinRealtimeWhisper {0}" },
             { "about.description",
               "スピーカー出力とマイクの音声を、ローカルの Whisper で文字起こしします。\nAPI キーもネットワークも不要です。" },
             { "about.runtime", "実行環境: {0} / Whisper.net {1}" },
@@ -278,8 +278,8 @@ namespace WinWhisper
             { "cli.sourceChoice", "-s には both / speakers / mic のいずれかを指定してください: {0}" },
             { "cli.languageChoice", "-l には ja / en のいずれかを指定してください: {0}" },
             { "cli.errorPrefix", "エラー: {0}" },
-            { "cli.helpHint", "使い方は WinWhisper.exe --help を参照してください。" },
-            { "cli.version", "WinWhisper {0}" },
+            { "cli.helpHint", "使い方は WinRealtimeWhisper.exe --help を参照してください。" },
+            { "cli.version", "WinRealtimeWhisper {0}" },
 
             { "cli.modelMissing", "モデルが見つかりません: {0}" },
             { "cli.modelMissingHint", "  設定 → モデル でダウンロードするか、--model で指定してください。" },
@@ -311,8 +311,8 @@ namespace WinWhisper
             new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // Main window
-            { "app.title", "WinWhisper - Real-time transcription" },
-            { "app.title.withState", "WinWhisper - Real-time transcription  [{0} / {1}]" },
+            { "app.title", "WinRealtimeWhisper - Real-time transcription" },
+            { "app.title.withState", "WinRealtimeWhisper - Real-time transcription  [{0} / {1}]" },
             { "menu.file", "&File" },
             { "menu.file.start", "&Start recording" },
             { "menu.file.stop", "&Stop recording" },
@@ -354,7 +354,7 @@ namespace WinWhisper
 
             { "dialog.recordingTitle", "Recording" },
             { "dialog.recordingBody", "Recording is in progress. Stop and exit?" },
-            { "dialog.errorTitle", "WinWhisper" },
+            { "dialog.errorTitle", "WinRealtimeWhisper" },
             { "dialog.unknownError", "An unknown error occurred." },
             { "dialog.logOpenFailed", "Could not create the log file." },
             { "status.noModel", "Cannot start without a model" },
@@ -372,7 +372,7 @@ namespace WinWhisper
             { "dialog.downloadFailedBody", "{0}\n\nLog: {1}" },
 
             { "about.title", "About" },
-            { "about.product", "WinWhisper {0}" },
+            { "about.product", "WinRealtimeWhisper {0}" },
             { "about.description",
               "Transcribes speaker output and microphone audio with a local Whisper model.\nNo API key and no network required." },
             { "about.runtime", "Runtime: {0} / Whisper.net {1}" },
@@ -441,8 +441,8 @@ namespace WinWhisper
             { "cli.sourceChoice", "-s must be one of both / speakers / mic: {0}" },
             { "cli.languageChoice", "-l must be either ja or en: {0}" },
             { "cli.errorPrefix", "Error: {0}" },
-            { "cli.helpHint", "Run WinWhisper.exe --help for usage." },
-            { "cli.version", "WinWhisper {0}" },
+            { "cli.helpHint", "Run WinRealtimeWhisper.exe --help for usage." },
+            { "cli.version", "WinRealtimeWhisper {0}" },
 
             { "cli.modelMissing", "Model not found: {0}" },
             { "cli.modelMissingHint", "  Download it in Settings > Model, or pass --model." },

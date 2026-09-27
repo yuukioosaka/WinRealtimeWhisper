@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 32bit float（任意のサンプルレート / チャンネル数）を、

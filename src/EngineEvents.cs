@@ -1,6 +1,6 @@
 using System;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     internal sealed class PartialTextEventArgs : EventArgs
     {

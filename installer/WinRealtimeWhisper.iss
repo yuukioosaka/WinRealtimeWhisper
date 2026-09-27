@@ -1,23 +1,23 @@
-; WinWhisper installer (Inno Setup 6)
+; WinRealtimeWhisper installer (Inno Setup 6)
 ;
 ; ビルド方法:
 ;   1) dotnet build -c Release
-;   2) iscc installer\WinWhisper.iss /DAppVersion=1.0.0
+;   2) iscc installer\WinRealtimeWhisper.iss /DAppVersion=1.0.0
 ;
-; /DMyAppSourceDir=... で取り込むフォルダを差し替えられる（既定は ..\bin\WinWhisper\Release\net48）。
+; /DMyAppSourceDir=... で取り込むフォルダを差し替えられる（既定は ..\bin\WinRealtimeWhisper\Release\net48）。
 ; GitHub Actions ではこのスクリプトを iscc で呼び出している。
 
-#define AppName "WinWhisper"
+#define AppName "WinRealtimeWhisper"
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
 
 ; exe からバージョン情報を読む（/DAppVersion を指定しない場合の既定として使う）
-#define AppPublisher "WinWhisper"
-#define AppExeName "WinWhisper.exe"
+#define AppPublisher "WinRealtimeWhisper"
+#define AppExeName "WinRealtimeWhisper.exe"
 
 #ifndef MyAppSourceDir
-  #define MyAppSourceDir "..\bin\WinWhisper\Release\net48"
+  #define MyAppSourceDir "..\bin\WinRealtimeWhisper\Release\net48"
 #endif
 
 ; 既定の出力先。CI からは /O で上書きする

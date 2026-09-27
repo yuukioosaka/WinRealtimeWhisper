@@ -7,7 +7,7 @@ using System.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// GUI を出さずに録音と文字起こしを行う。進行状況は標準出力、結果は

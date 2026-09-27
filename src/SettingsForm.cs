@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 設定ダイアログ。デバイス・モデル・履歴の保存先などをここに集約する。
@@ -234,8 +234,8 @@ namespace WinWhisper
                 Width = 200,
                 Margin = new Padding(3, 2, 3, 8)
             };
-            _cmbLanguage.Items.Add(new LanguageItem(WinWhisper.UiLanguage.Japanese));
-            _cmbLanguage.Items.Add(new LanguageItem(WinWhisper.UiLanguage.English));
+            _cmbLanguage.Items.Add(new LanguageItem(WinRealtimeWhisper.UiLanguage.Japanese));
+            _cmbLanguage.Items.Add(new LanguageItem(WinRealtimeWhisper.UiLanguage.English));
             layout.Controls.Add(_cmbLanguage, 1, 0);
 
             var note = new Label
@@ -256,12 +256,12 @@ namespace WinWhisper
         /// <summary>言語コンボの 1 項目。</summary>
         private sealed class LanguageItem
         {
-            public LanguageItem(WinWhisper.UiLanguage language)
+            public LanguageItem(WinRealtimeWhisper.UiLanguage language)
             {
                 Language = language;
             }
 
-            public WinWhisper.UiLanguage Language { get; private set; }
+            public WinRealtimeWhisper.UiLanguage Language { get; private set; }
 
             public override string ToString()
             {
@@ -382,9 +382,9 @@ namespace WinWhisper
         {
             _lblPaths.Text = Loc.T("settings.storage.paths",
                 HistoryStore.RootDirectory,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WinWhisper", "wav"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WinRealtimeWhisper", "wav"),
                 AppSettings.ModelDirectory,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinWhisper", "logs"));
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinRealtimeWhisper", "logs"));
         }
 
         /// <summary>コンボの選択から ggml のファイル名を取り出す。</summary>
@@ -407,7 +407,7 @@ namespace WinWhisper
             return Path.GetFileName(text);
         }
 
-        private void SelectLanguageInCombo(WinWhisper.UiLanguage language)
+        private void SelectLanguageInCombo(WinRealtimeWhisper.UiLanguage language)
         {
             for (int i = 0; i < _cmbLanguage.Items.Count; i++)
             {
@@ -535,7 +535,7 @@ namespace WinWhisper
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "WinWhisper", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, "WinRealtimeWhisper", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

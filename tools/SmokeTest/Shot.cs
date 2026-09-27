@@ -2,9 +2,9 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Windows.Forms;
-using WinWhisper;
+using WinRealtimeWhisper;
 
-namespace WinWhisperSmokeTest
+namespace WinRealtimeWhisperSmokeTest
 {
     /// <summary>
     /// 見た目の確認用。ダイアログのタブごとにスクリーンショットを撮り、

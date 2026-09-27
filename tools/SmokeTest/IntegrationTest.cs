@@ -4,9 +4,9 @@ using System.Speech.Synthesis;
 using System.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using WinWhisper;
+using WinRealtimeWhisper;
 
-namespace WinWhisperSmokeTest
+namespace WinRealtimeWhisperSmokeTest
 {
     /// <summary>
     /// 実際の TranscriptionEngine をループバック経由で動かす統合テスト。
@@ -19,7 +19,7 @@ namespace WinWhisperSmokeTest
             DiagLog.Start();
 
             // 音声合成でテスト音声を作る
-            string speechWav = Path.Combine(Path.GetTempPath(), "winwhisper_e2e.wav");
+            string speechWav = Path.Combine(Path.GetTempPath(), "winrealtimewhisper_e2e.wav");
             SynthesizeJapanese(speechWav);
 
             // 既定の出力デバイスを取得（ループバックと再生で同じデバイスを使う）
@@ -37,8 +37,8 @@ namespace WinWhisperSmokeTest
                 OutputDeviceId = device.ID
             };
 
-            string wavOut = Path.Combine(Path.GetTempPath(), "winwhisper_e2e_rec.wav");
-            string historyPath = Path.Combine(Path.GetTempPath(), "winwhisper_e2e_session");
+            string wavOut = Path.Combine(Path.GetTempPath(), "winrealtimewhisper_e2e_rec.wav");
+            string historyPath = Path.Combine(Path.GetTempPath(), "winrealtimewhisper_e2e_session");
             var session = new TranscriptionSession();
 
             using (var engine = new TranscriptionEngine())

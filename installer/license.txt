@@ -1,7 +1,7 @@
-WinWhisper
+WinRealtimeWhisper
 =======
 
-Copyright (c) 2026 WinWhisper contributors
+Copyright (c) 2026 WinRealtimeWhisper contributors
 
 MIT License
 -----------

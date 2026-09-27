@@ -4,10 +4,10 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
-    /// Whisper の ggml モデルをダウンロードして %LOCALAPPDATA%\WinWhisper\models\ に置く。
+    /// Whisper の ggml モデルをダウンロードして %LOCALAPPDATA%\WinRealtimeWhisper\models\ に置く。
     ///
     /// モデルはアプリに同梱せず、初回に必要なものだけ取得する。
     /// CPU 実行なので small が速度と精度の妥協点、tiny/base は遅い PC 向け。
@@ -114,7 +114,7 @@ namespace WinWhisper
             }
 
             var request = (HttpWebRequest)WebRequest.Create(UrlFor(fileName));
-            request.UserAgent = "WinWhisper/1.0";
+            request.UserAgent = "WinRealtimeWhisper/1.0";
             request.Timeout = 30000;
             request.ReadWriteTimeout = 60000;
 

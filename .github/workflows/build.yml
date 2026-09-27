@@ -32,22 +32,22 @@ jobs:
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore src/WinWhisper.csproj
+        run: dotnet restore src/WinRealtimeWhisper.csproj
 
       - name: Build (Release)
-        run: dotnet build src/WinWhisper.csproj -c Release --no-restore
+        run: dotnet build src/WinRealtimeWhisper.csproj -c Release --no-restore
 
       - name: Verify build output
         shell: pwsh
         run: |
-          if (-not (Test-Path "bin/WinWhisper/Release/net48/WinWhisper.exe")) {
-            throw "WinWhisper.exe not found"
+          if (-not (Test-Path "bin/WinRealtimeWhisper/Release/net48/WinRealtimeWhisper.exe")) {
+            throw "WinRealtimeWhisper.exe not found"
           }
           Write-Host "--- win-x64 natives ---"
-          Get-ChildItem "bin/WinWhisper/Release/net48/runtimes/win-x64" | Format-Table Name, Length
+          Get-ChildItem "bin/WinRealtimeWhisper/Release/net48/runtimes/win-x64" | Format-Table Name, Length
 
           # win-x64 以外のネイティブが混ざっていないことを確認する
-          $foreign = Get-ChildItem "bin/WinWhisper/Release/net48/runtimes" -Directory |
+          $foreign = Get-ChildItem "bin/WinRealtimeWhisper/Release/net48/runtimes" -Directory |
             Where-Object { $_.Name -ne 'win-x64' }
           if ($foreign) {
             throw "Non win-x64 natives were shipped: $($foreign.Name -join ', ')"
@@ -57,7 +57,7 @@ jobs:
       - name: CLI smoke test
         shell: pwsh
         run: |
-          $exe = "bin/WinWhisper/Release/net48/WinWhisper.exe"
+          $exe = "bin/WinRealtimeWhisper/Release/net48/WinRealtimeWhisper.exe"
           & $exe --version
           & $exe --help | Select-Object -First 3
           & $exe --ui-language ja --help | Select-Object -First 3
@@ -66,10 +66,10 @@ jobs:
       - name: Upload build output
         uses: actions/upload-artifact@v5
         with:
-          name: WinWhisper-build
+          name: WinRealtimeWhisper-build
           path: |
-            bin/WinWhisper/Release/net48/**
-            !bin/WinWhisper/Release/net48/**/*.pdb
+            bin/WinRealtimeWhisper/Release/net48/**
+            !bin/WinRealtimeWhisper/Release/net48/**/*.pdb
           if-no-files-found: error
 
   installer:
@@ -86,7 +86,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Build (Release)
-        run: dotnet build src/WinWhisper.csproj -c Release
+        run: dotnet build src/WinRealtimeWhisper.csproj -c Release
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -99,7 +99,7 @@ jobs:
           if ($env:GITHUB_REF -like 'refs/tags/v*') {
             $version = $env:GITHUB_REF -replace '^refs/tags/v', ''
           } else {
-            $match = Select-String -Path src/WinWhisper.csproj -Pattern '<Version>([^<]+)</Version>'
+            $match = Select-String -Path src/WinRealtimeWhisper.csproj -Pattern '<Version>([^<]+)</Version>'
             $version = $match.Matches[0].Groups[1].Value
           }
           Write-Host "version = $version"
@@ -109,7 +109,7 @@ jobs:
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          & $iscc "installer\WinWhisper.iss" "/DAppVersion=${{ steps.version.outputs.version }}"
+          & $iscc "installer\WinRealtimeWhisper.iss" "/DAppVersion=${{ steps.version.outputs.version }}"
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
       - name: List installer
@@ -118,7 +118,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v5
         with:
-          name: WinWhisper-installer
+          name: WinRealtimeWhisper-installer
           path: bin/installer/*.exe
           if-no-files-found: error
 
@@ -133,26 +133,26 @@ jobs:
       - name: Download installer
         uses: actions/download-artifact@v5
         with:
-          name: WinWhisper-installer
+          name: WinRealtimeWhisper-installer
           path: dist
 
       - name: Download build output
         uses: actions/download-artifact@v5
         with:
-          name: WinWhisper-build
+          name: WinRealtimeWhisper-build
           path: dist/portable
 
       - name: Zip portable build
         shell: pwsh
         run: |
           Compress-Archive -Path "dist/portable/*" `
-            -DestinationPath "dist/WinWhisper-${{ github.ref_name }}-portable-x64.zip" -Force
+            -DestinationPath "dist/WinRealtimeWhisper-${{ github.ref_name }}-portable-x64.zip" -Force
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*-setup.exe
-            dist/WinWhisper-${{ github.ref_name }}-portable-x64.zip
+            dist/WinRealtimeWhisper-${{ github.ref_name }}-portable-x64.zip
           draft: true
           generate_release_notes: true

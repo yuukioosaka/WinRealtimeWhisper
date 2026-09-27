@@ -5,7 +5,7 @@ using System.IO;
 using System.Threading;
 using Whisper.net;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// Whisper のワーカー設定。UI から渡される実行時パラメータ。
@@ -198,12 +198,12 @@ namespace WinWhisper
 
             _segmentThread = new Thread(SegmentLoop);
             _segmentThread.IsBackground = true;
-            _segmentThread.Name = "WinWhisper whisper segmenter";
+            _segmentThread.Name = "WinRealtimeWhisper whisper segmenter";
             _segmentThread.Start();
 
             _inferThread = new Thread(InferenceLoop);
             _inferThread.IsBackground = true;
-            _inferThread.Name = "WinWhisper whisper inference";
+            _inferThread.Name = "WinRealtimeWhisper whisper inference";
             _inferThread.Start();
         }
 

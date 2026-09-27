@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 過去の履歴を一覧して中身を確認するウィンドウ。
@@ -177,7 +177,7 @@ namespace WinWhisper
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, DiagLog.Describe(ex), "WinWhisper",
+                MessageBox.Show(this, DiagLog.Describe(ex), "WinRealtimeWhisper",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

@@ -3,11 +3,11 @@ using System.IO;
 using System.Text;
 using System.Threading;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// Azure Speech SDK の診断ログを 1 箇所に集約する。
-    /// %LOCALAPPDATA%\WinWhisper\logs\winwhisper-yyyyMMdd-HHmmss.log に追記する。
+    /// %LOCALAPPDATA%\WinRealtimeWhisper\logs\winrealtimewhisper-yyyyMMdd-HHmmss.log に追記する。
     ///
     /// Speech SDK の内部ログ (Speech SDK の verbose ログ) と、アプリ側で
     /// 明示的に記録するイベントを同じファイルに並べて出すことで、
@@ -40,14 +40,14 @@ namespace WinWhisper
             get { return _enabled; }
         }
 
-        /// <summary>ログの保存先: %LOCALAPPDATA%\WinWhisper\logs</summary>
+        /// <summary>ログの保存先: %LOCALAPPDATA%\WinRealtimeWhisper\logs</summary>
         public static string Directory
         {
             get
             {
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "WinWhisper",
+                    "WinRealtimeWhisper",
                     "logs");
             }
         }
@@ -68,14 +68,14 @@ namespace WinWhisper
 
                     System.IO.Directory.CreateDirectory(dir);
 
-                    string stamp = "winwhisper-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                    string stamp = "winrealtimewhisper-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
                     _path = Path.Combine(dir, stamp + ".log");
                     _sdkPath = Path.Combine(dir, stamp + ".sdk.log");
 
                     _enabled = true;
 
                     Write("================================================================");
-                    Write("WinWhisper log started " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                    Write("WinRealtimeWhisper log started " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
                     Write("OS      : " + Environment.OSVersion.Version);
                     Write("Runtime : " + Environment.Version);
                     Write("Process : " + (Environment.Is64BitProcess ? "x64" : "x86"));

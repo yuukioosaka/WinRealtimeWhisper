@@ -1,8 +1,8 @@
 using System;
 using System.Windows.Forms;
-using WinWhisper;
+using WinRealtimeWhisper;
 
-namespace WinWhisperSmokeTest
+namespace WinRealtimeWhisperSmokeTest
 {
     /// <summary>設定/履歴ダイアログの構築とレイアウトが例外なく通るか確認する。</summary>
     internal static class DialogSmoke

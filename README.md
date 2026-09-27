@@ -1,4 +1,4 @@
-# WinWhisper — Real-time transcription (Windows 11 / .NET Framework 4.8)
+# WinRealtimeWhisper — Real-time transcription (Windows 11 / .NET Framework 4.8)
 
 **English** | [日本語](README.ja.md)
 
@@ -14,7 +14,7 @@ Source code lives under `src/`.
 
 | Path | Role |
 | --- | --- |
-| `src/WinWhisper.csproj` | .NET Framework 4.8 / WinForms / x64 project |
+| `src/WinRealtimeWhisper.csproj` | .NET Framework 4.8 / WinForms / x64 project |
 | `src/Program.cs` | Entry point (global exception dialog) |
 | `src/MainForm.cs` | Main window (menu bar, recording controls, real-time view) |
 | `src/SettingsForm.cs` | Settings dialog (General, Audio, Model, Storage) |
@@ -25,7 +25,7 @@ Source code lives under `src/`.
 | `src/AudioPipeline.cs` | float samples → 16 kHz mono conversion |
 | `src/WhisperModelStore.cs` | ggml model download and placement |
 | `src/TranscriptionSession.cs` | Session line management, plain text, history saving |
-| `src/AppSettings.cs` | Reads/writes `%LOCALAPPDATA%\WinWhisper\settings.json` |
+| `src/AppSettings.cs` | Reads/writes `%LOCALAPPDATA%\WinRealtimeWhisper\settings.json` |
 | `src/DiagLog.cs` | Diagnostic log output |
 | `src/Loc.cs` | Japanese/English UI string table (`Loc.T("key")`) |
 | `src/CommandLineOptions.cs` | Command-line argument parsing |
@@ -33,24 +33,24 @@ Source code lives under `src/`.
 | `src/NativeConsole.cs` | Attaches the WinExe to the parent console |
 | `Directory.Build.props` | Keeps `bin/` and `obj/` at the repository root |
 | `tools/SmokeTest` | Tests for conversion, segmentation, inference, and dialogs (not part of the app build) |
-| `installer/WinWhisper.iss` | Inno Setup script for the installer |
+| `installer/WinRealtimeWhisper.iss` | Inno Setup script for the installer |
 | `installer/license.txt` | License shown by the installer |
 | `.github/workflows/build.yml` | CI: build, CLI smoke tests, installer, release |
 
 ## Build
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release
+dotnet build src/WinRealtimeWhisper.csproj -c Release
 ```
 
-Output lands in `bin\WinWhisper\Release\net48\` (test builds go to
+Output lands in `bin\WinRealtimeWhisper\Release\net48\` (test builds go to
 `bin\SmokeTest\Release\net48\`). `Directory.Build.props` keeps all build output
 tidy under the repository root.
 
 `Whisper.net` and `Whisper.net.Runtime` are pinned to 1.9.1.
 `Whisper.net.Runtime` contains the native `whisper.dll` / `ggml-*.dll`, which are
 copied into `runtimes/win-x64/` at build time.
-To keep the distribution small, `src/WinWhisper.csproj` keeps only the win-x64 natives
+To keep the distribution small, `src/WinRealtimeWhisper.csproj` keeps only the win-x64 natives
 (about 4.6 MB total instead of ~20 MB) and drops the macOS-only Metal shader.
 
 ### Installer
@@ -58,12 +58,12 @@ To keep the distribution small, `src/WinWhisper.csproj` keeps only the win-x64 n
 [Inno Setup 6](https://jrsoftware.org/isinfo.php) is required.
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release
+dotnet build src/WinRealtimeWhisper.csproj -c Release
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" `
-  -DAppVersion=1.0.0 installer\WinWhisper.iss
+  -DAppVersion=1.0.0 installer\WinRealtimeWhisper.iss
 ```
 
-The installer lands in `bin\installer\WinWhisper-1.0.0-setup.exe`.
+The installer lands in `bin\installer\WinRealtimeWhisper-1.0.0-setup.exe`.
 It installs per-user by default (`PrivilegesRequired=lowest`), so no admin rights
 are needed; an elevated install is offered through the dialog if you want it.
 The setup language is selectable between Japanese and English.
@@ -71,8 +71,8 @@ The setup language is selectable between Japanese and English.
 A silent install is useful for testing:
 
 ```powershell
-.\bin\installer\WinWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winwhisper
-C:\temp\winwhisper\unins000.exe /VERYSILENT
+.\bin\installer\WinRealtimeWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winrealtimewhisper
+C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
 ```
 
 ### Continuous integration
@@ -86,10 +86,10 @@ C:\temp\winwhisper\unins000.exe /VERYSILENT
 | `release` | On a `v*` tag, attaches the setup and a portable ZIP to a draft GitHub Release |
 
 The version comes from the tag on a tag build, and from `<Version>` in
-`src/WinWhisper.csproj` otherwise. To cut a release:
+`src/WinRealtimeWhisper.csproj` otherwise. To cut a release:
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release   # confirm locally first
+dotnet build src/WinRealtimeWhisper.csproj -c Release   # confirm locally first
 git tag v1.0.0
 git push origin v1.0.0
 ```
@@ -102,7 +102,7 @@ The default is **`ggml-small.bin` (488 MB)**. Pick `tiny` / `base` / `small` /
 If a model has not been downloaded yet, a confirmation dialog appears at startup
 or when you start recording, and the download runs automatically (progress is
 shown in the status bar). To install manually, download from the URL below and
-place it in `%LOCALAPPDATA%\WinWhisper\models\`.
+place it in `%LOCALAPPDATA%\WinRealtimeWhisper\models\`.
 
 <https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin>
 
@@ -111,7 +111,7 @@ dropping to `base` or `tiny` makes a large difference.
 
 ## Usage
 
-1. Launch `WinWhisper.exe` (this is an x64 build).
+1. Launch `WinRealtimeWhisper.exe` (this is an x64 build).
 2. On first run, a model download prompt appears. Choose **Yes** to fetch it.
 3. If needed, open **Tools > Settings** to change the audio source and model.
 4. Press **Start recording** (`F5`). Audio is recognized per segment, and
@@ -153,10 +153,10 @@ arrives, a segment is cut at 6 seconds, so the delay never exceeds about that.
 
 | Kind | Location |
 | --- | --- |
-| Text (history) | `Documents\WinWhisper\history\session_yyyyMMdd_HHmmss.txt` |
-| WAV | `Documents\WinWhisper\wav\rec_yyyyMMdd_HHmmss.wav` (not rewritten when input is a file via `-i`) |
-| Models | `%LOCALAPPDATA%\WinWhisper\models\` |
-| Logs | `%LOCALAPPDATA%\WinWhisper\logs\` |
+| Text (history) | `Documents\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt` |
+| WAV | `Documents\WinRealtimeWhisper\wav\rec_yyyyMMdd_HHmmss.wav` (not rewritten when input is a file via `-i`) |
+| Models | `%LOCALAPPDATA%\WinRealtimeWhisper\models\` |
+| Logs | `%LOCALAPPDATA%\WinRealtimeWhisper\logs\` |
 
 - Text is auto-saved periodically while recording, then overwritten with the
   finalized content on stop.
@@ -172,12 +172,12 @@ to recording or transcription runs the app **without a GUI** and writes results
 to stdout, so you can redirect them to a file.
 
 ```powershell
-WinWhisper.exe --help
-WinWhisper.exe --ui-language ja --help
-WinWhisper.exe --list-devices
-WinWhisper.exe -t 60 -o interview.wav --text interview.txt
-WinWhisper.exe -t 0
-WinWhisper.exe -i speech.wav
+WinRealtimeWhisper.exe --help
+WinRealtimeWhisper.exe --ui-language ja --help
+WinRealtimeWhisper.exe --list-devices
+WinRealtimeWhisper.exe -t 60 -o interview.wav --text interview.txt
+WinRealtimeWhisper.exe -t 0
+WinRealtimeWhisper.exe -i speech.wav
 ```
 
 | Option | Description |
@@ -251,7 +251,7 @@ segment is complete.
 Logs are written here.
 
 ```
-%LOCALAPPDATA%\WinWhisper\logs\winwhisper-yyyyMMdd-HHmmss.log
+%LOCALAPPDATA%\WinRealtimeWhisper\logs\winrealtimewhisper-yyyyMMdd-HHmmss.log
 ```
 
 ### Check whether audio is arriving

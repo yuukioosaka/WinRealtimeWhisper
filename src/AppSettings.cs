@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     internal enum AudioSourceKind
     {
@@ -30,7 +30,7 @@ namespace WinWhisper
         }
     }
 
-    /// <summary>%LOCALAPPDATA%\WinWhisper\settings.json に保存する最小限の設定。</summary>
+    /// <summary>%LOCALAPPDATA%\WinRealtimeWhisper\settings.json に保存する最小限の設定。</summary>
     internal sealed class AppSettings
     {
         /// <summary>{"ModelPath":"...ggml-small.bin","Language":"ja","DeviceId":"{0.0.0...}","SourceKind":"Both"}</summary>
@@ -92,14 +92,14 @@ namespace WinWhisper
             return Loc.DetectFromSystem();
         }
 
-        /// <summary>モデルの既定の置き場。%LOCALAPPDATA%\WinWhisper\models\</summary>
+        /// <summary>モデルの既定の置き場。%LOCALAPPDATA%\WinRealtimeWhisper\models\</summary>
         public static string ModelDirectory
         {
             get
             {
                 return ModelDirectoryOverride ?? Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "WinWhisper",
+                    "WinRealtimeWhisper",
                     "models");
             }
         }
@@ -113,7 +113,7 @@ namespace WinWhisper
             {
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "WinWhisper",
+                    "WinRealtimeWhisper",
                     "settings.json");
             }
         }

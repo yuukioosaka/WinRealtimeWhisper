@@ -7,7 +7,7 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     /// <summary>
     /// 録音 → Whisper 認識 → WAV 保存 をまとめて面倒みる。
@@ -392,7 +392,7 @@ namespace WinWhisper
             });
 
             thread.IsBackground = true;
-            thread.Name = "WinWhisper.FilePump";
+            thread.Name = "WinRealtimeWhisper.FilePump";
             thread.Start();
         }
 

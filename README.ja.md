@@ -1,4 +1,4 @@
-# WinWhisper — リアルタイム文字起こし（Windows 11 / .NET Framework 4.8）
+# WinRealtimeWhisper — リアルタイム文字起こし（Windows 11 / .NET Framework 4.8）
 
 [English](README.md) | **日本語**
 
@@ -13,7 +13,7 @@
 
 | パス | 役割 |
 | --- | --- |
-| `src/WinWhisper.csproj` | .NET Framework 4.8 / WinForms / x64 のプロジェクト |
+| `src/WinRealtimeWhisper.csproj` | .NET Framework 4.8 / WinForms / x64 のプロジェクト |
 | `src/Program.cs` | エントリポイント（グローバル例外ダイアログ） |
 | `src/MainForm.cs` | メイン画面（メニューバー・録音操作・リアルタイム表示） |
 | `src/SettingsForm.cs` | 設定ダイアログ（全般・録音・モデル・保存先） |
@@ -24,7 +24,7 @@
 | `src/AudioPipeline.cs` | float サンプル列 → 16kHz モノラルの変換 |
 | `src/WhisperModelStore.cs` | ggml モデルのダウンロードと配置 |
 | `src/TranscriptionSession.cs` | セッションの行管理・プレーンテキスト化・履歴保存 |
-| `src/AppSettings.cs` | `%LOCALAPPDATA%\WinWhisper\settings.json` の読み書き |
+| `src/AppSettings.cs` | `%LOCALAPPDATA%\WinRealtimeWhisper\settings.json` の読み書き |
 | `src/DiagLog.cs` | 動作ログの出力 |
 | `src/Loc.cs` | UI 文字列の日本語 / 英語の対応表（`Loc.T("key")`） |
 | `src/CommandLineOptions.cs` | コマンドライン引数の解釈 |
@@ -32,23 +32,23 @@
 | `src/NativeConsole.cs` | WinExe を親コンソールに接続 |
 | `Directory.Build.props` | `bin/` と `obj/` をリポジトリ直下にまとめる |
 | `tools/SmokeTest` | 変換・区切り・推論・ダイアログを確認するテスト（本番ビルド対象外） |
-| `installer/WinWhisper.iss` | インストーラーの Inno Setup スクリプト |
+| `installer/WinRealtimeWhisper.iss` | インストーラーの Inno Setup スクリプト |
 | `installer/license.txt` | インストーラーが表示するライセンス |
 | `.github/workflows/build.yml` | CI（ビルド・CLI スモークテスト・インストーラー・リリース） |
 
 ## ビルド
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release
+dotnet build src/WinRealtimeWhisper.csproj -c Release
 ```
 
-出力は `bin\WinWhisper\Release\net48\` です（テストは `bin\SmokeTest\Release\net48\`）。
+出力は `bin\WinRealtimeWhisper\Release\net48\` です（テストは `bin\SmokeTest\Release\net48\`）。
 `Directory.Build.props` でビルド成果物をリポジトリ直下にまとめています。
 
 `Whisper.net` と `Whisper.net.Runtime` は 1.9.1 を指定しています。
 `Whisper.net.Runtime` にはネイティブの `whisper.dll` / `ggml-*.dll` が含まれ、
 ビルド時に `runtimes/win-x64/` へ自動配置されます。
-配布サイズを抑えるため、`src/WinWhisper.csproj` は win-x64 以外のネイティブを除外し、
+配布サイズを抑えるため、`src/WinRealtimeWhisper.csproj` は win-x64 以外のネイティブを除外し、
 macOS 専用の Metal シェーダも落としています（合計 20MB → 約 4.6MB）。
 
 ### インストーラー
@@ -56,20 +56,20 @@ macOS 専用の Metal シェーダも落としています（合計 20MB → 約
 [Inno Setup 6](https://jrsoftware.org/isinfo.php) が必要です。
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release
+dotnet build src/WinRealtimeWhisper.csproj -c Release
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" `
-  -DAppVersion=1.0.0 installer\WinWhisper.iss
+  -DAppVersion=1.0.0 installer\WinRealtimeWhisper.iss
 ```
 
-出力は `bin\installer\WinWhisper-1.0.0-setup.exe` です。
+出力は `bin\installer\WinRealtimeWhisper-1.0.0-setup.exe` です。
 既定はユーザー単位インストール（`PrivilegesRequired=lowest`）なので管理者権限は不要ですが、
 ダイアログから管理者インストールも選べます。セットアップの言語は日本語 / 英語から選べます。
 
 動作確認にはサイレントインストールが便利です。
 
 ```powershell
-.\bin\installer\WinWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winwhisper
-C:\temp\winwhisper\unins000.exe /VERYSILENT
+.\bin\installer\WinRealtimeWhisper-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\temp\winrealtimewhisper
+C:\temp\winrealtimewhisper\unins000.exe /VERYSILENT
 ```
 
 ### CI（GitHub Actions）
@@ -82,11 +82,11 @@ C:\temp\winwhisper\unins000.exe /VERYSILENT
 | `installer` | Inno Setup でインストーラーをビルドしてアップロード |
 | `release` | `v*` タグで、セットアップとポータブル ZIP をドラフト Release に添付 |
 
-バージョンはタグビルドならタグから、それ以外は `src/WinWhisper.csproj` の `<Version>` から取ります。
+バージョンはタグビルドならタグから、それ以外は `src/WinRealtimeWhisper.csproj` の `<Version>` から取ります。
 リリース手順は次のとおりです。
 
 ```powershell
-dotnet build src/WinWhisper.csproj -c Release   # 先にローカルで確認
+dotnet build src/WinRealtimeWhisper.csproj -c Release   # 先にローカルで確認
 git tag v1.0.0
 git push origin v1.0.0
 ```
@@ -98,7 +98,7 @@ git push origin v1.0.0
 
 未取得のモデルを選んだ場合は、起動時または録音開始時に確認ダイアログが出て
 自動でダウンロードします（進捗はステータスバーに表示）。
-手動で置く場合は次の URL からダウンロードして `%LOCALAPPDATA%\WinWhisper\models\`
+手動で置く場合は次の URL からダウンロードして `%LOCALAPPDATA%\WinRealtimeWhisper\models\`
 に保存してください。
 
 <https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin>
@@ -108,7 +108,7 @@ git push origin v1.0.0
 
 ## 使い方
 
-1. `WinWhisper.exe` を起動します（x64 ビルドです）。
+1. `WinRealtimeWhisper.exe` を起動します（x64 ビルドです）。
 2. 初回はモデルのダウンロード確認が出ます。**はい** を選ぶと取得します。
 3. 必要なら **ツール > 設定** で音源とモデルを変えます。
 4. **録音開始**（`F5`）を押します。音声を区間ごとに認識し、確定した行が表示されます。
@@ -148,10 +148,10 @@ git push origin v1.0.0
 
 | 種類 | 場所 |
 | --- | --- |
-| テキスト（履歴） | `ドキュメント\WinWhisper\history\session_yyyyMMdd_HHmmss.txt` |
-| WAV | `ドキュメント\WinWhisper\wav\rec_yyyyMMdd_HHmmss.wav`（`-i` でファイル入力したときは再保存しません） |
-| モデル | `%LOCALAPPDATA%\WinWhisper\models\` |
-| ログ | `%LOCALAPPDATA%\WinWhisper\logs\` |
+| テキスト（履歴） | `ドキュメント\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt` |
+| WAV | `ドキュメント\WinRealtimeWhisper\wav\rec_yyyyMMdd_HHmmss.wav`（`-i` でファイル入力したときは再保存しません） |
+| モデル | `%LOCALAPPDATA%\WinRealtimeWhisper\models\` |
+| ログ | `%LOCALAPPDATA%\WinRealtimeWhisper\logs\` |
 
 - テキストは録音中も定期的に自動保存され、停止時に確定内容で上書きされます。
 - 形式は 1 行 1 発話のプレーンテキストです（時刻は入りません）。
@@ -166,12 +166,12 @@ git push origin v1.0.0
 結果を標準出力へ書き出すのでリダイレクトで保存できます。
 
 ```powershell
-WinWhisper.exe --help
-WinWhisper.exe --ui-language en --help
-WinWhisper.exe --list-devices
-WinWhisper.exe -t 60 -o interview.wav --text interview.txt
-WinWhisper.exe -t 0
-WinWhisper.exe -i speech.wav
+WinRealtimeWhisper.exe --help
+WinRealtimeWhisper.exe --ui-language en --help
+WinRealtimeWhisper.exe --list-devices
+WinRealtimeWhisper.exe -t 60 -o interview.wav --text interview.txt
+WinRealtimeWhisper.exe -t 0
+WinRealtimeWhisper.exe -i speech.wav
 ```
 
 | オプション | 説明 |
@@ -243,7 +243,7 @@ Whisper はストリーミング認識ではなく区間ごとのバッチ処理
 ログはここに出ます。
 
 ```
-%LOCALAPPDATA%\WinWhisper\logs\winwhisper-yyyyMMdd-HHmmss.log
+%LOCALAPPDATA%\WinRealtimeWhisper\logs\winrealtimewhisper-yyyyMMdd-HHmmss.log
 ```
 
 ### 音声が届いているか確認する

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     internal sealed class MainForm : Form
     {
@@ -682,7 +682,7 @@ namespace WinWhisper
         {
             string dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "WinWhisper",
+                "WinRealtimeWhisper",
                 "wav");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "rec_" + startedAt.ToString("yyyyMMdd_HHmmss") + ".wav");

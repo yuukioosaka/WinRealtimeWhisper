@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
 
-namespace WinWhisper
+namespace WinRealtimeWhisper
 {
     internal static class Program
     {
