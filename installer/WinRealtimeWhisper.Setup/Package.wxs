@@ -37,6 +37,8 @@
 
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- アプリとコントロールパネル（プログラムの追加と削除）に出すアイコン。 -->
+    <Icon Id="AppIcon" SourceFile="$(RepoRootDir)src\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
 
     <!-- Windows 11 のビルド番号を読み取る。VersionNT / WindowsBuild は

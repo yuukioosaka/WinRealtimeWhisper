@@ -13,6 +13,9 @@ help_*.txt
 devices.txt
 msi_run.txt
 
+# Generated icon output goes to the build tree, not the repo
+bin/MakeIcon/
+
 # User/IDE files
 .vs/
 *.user

@@ -18,7 +18,7 @@
 | `src/MainForm.cs` | メイン画面（メニューバー・録音操作・リアルタイム表示） |
 | `src/SettingsForm.cs` | 設定ダイアログ（全般・録音・モデル・保存先） |
 | `src/HistoryForm.cs` | 過去の履歴ウィンドウ（一覧と中身のプレビュー） |
-| `src/AppIcons.cs` | 実行時に描くアプリアイコン |
+| `src/AppIcons.cs` | アプリアイコンの絵の定義（実行時描画と .ico 生成の共通元） |
 | `src/TranscriptionEngine.cs` | 録音デバイス、WAV 書き出し、レベル表示、認識の起動と停止 |
 | `src/WhisperRecognizer.cs` | 音声の区間切り出しと Whisper 推論（スレッド 2 本） |
 | `src/AudioPipeline.cs` | float サンプル列 → 16kHz モノラルの変換 |
@@ -32,6 +32,7 @@
 | `src/NativeConsole.cs` | WinExe を親コンソールに接続 |
 | `Directory.Build.props` | `bin/` と `obj/` をリポジトリ直下にまとめる |
 | `tools/SmokeTest` | 変換・区切り・推論・ダイアログを確認するテスト（本番ビルド対象外） |
+| `tools/MakeIcon` | `AppIcons` の絵から `src/app.ico` を生成する（exe と MSI のアイコン） |
 | `installer/WinRealtimeWhisper.Setup` | インストーラーの WiX プロジェクト（MSI） |
 | `LICENSE` | ライセンス（MIT） |
 | `.github/workflows/build.yml` | CI（ビルド・CLI スモークテスト・インストーラー・リリース） |
@@ -50,6 +51,21 @@ dotnet build src/WinRealtimeWhisper.csproj -c Release
 ビルド時に `runtimes/win-x64/` へ自動配置されます。
 配布サイズを抑えるため、`src/WinRealtimeWhisper.csproj` は win-x64 以外のネイティブを除外し、
 macOS 専用の Metal シェーダも落としています（合計 20MB → 約 4.6MB）。
+
+### アイコン
+
+アイコンの絵は `src/AppIcons.cs` の `Draw()` にあり、実行時のウィンドウアイコンと
+`.ico` の中身が同じ定義から作られます。`.ico` は次のコマンドで生成し、
+生成物（`src/app.ico`）をコミットします。exe の埋め込みアイコンと MSI の
+`ARPPRODUCTICON` がこれを使います。
+
+```powershell
+dotnet build tools/MakeIcon/MakeIcon.csproj -c Release
+.\bin\MakeIcon\Release\net48\MakeIcon.exe src/app.ico
+```
+
+アイコンの絵を変えたら上のコマンドを実行し直してください。CI は生成し直して
+コミット済みの `.ico` と一致するかを検証します（古ければ失敗します）。
 
 ### インストーラー（MSI）
 

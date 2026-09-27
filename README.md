@@ -19,7 +19,7 @@ Source code lives under `src/`.
 | `src/MainForm.cs` | Main window (menu bar, recording controls, real-time view) |
 | `src/SettingsForm.cs` | Settings dialog (General, Audio, Model, Storage) |
 | `src/HistoryForm.cs` | History window (list and content preview) |
-| `src/AppIcons.cs` | App icon drawn at runtime |
+| `src/AppIcons.cs` | Single source for the app icon art (used at runtime and for the .ico) |
 | `src/TranscriptionEngine.cs` | Capture devices, WAV writing, level display, start/stop |
 | `src/WhisperRecognizer.cs` | Audio segmentation and Whisper inference (two threads) |
 | `src/AudioPipeline.cs` | float samples → 16 kHz mono conversion |
@@ -33,6 +33,7 @@ Source code lives under `src/`.
 | `src/NativeConsole.cs` | Attaches the WinExe to the parent console |
 | `Directory.Build.props` | Keeps `bin/` and `obj/` at the repository root |
 | `tools/SmokeTest` | Tests for conversion, segmentation, inference, and dialogs (not part of the app build) |
+| `tools/MakeIcon` | Generates `src/app.ico` from the `AppIcons` art (exe and MSI icon) |
 | `installer/WinRealtimeWhisper.Setup` | WiX project that builds the MSI installer |
 | `LICENSE` | License (MIT) |
 | `.github/workflows/build.yml` | CI: build, CLI smoke tests, installer, release |
@@ -52,6 +53,20 @@ tidy under the repository root.
 copied into `runtimes/win-x64/` at build time.
 To keep the distribution small, `src/WinRealtimeWhisper.csproj` keeps only the win-x64 natives
 (about 4.6 MB total instead of ~20 MB) and drops the macOS-only Metal shader.
+
+### Icon
+
+The icon art lives in `AppIcons.Draw()` (`src/AppIcons.cs`), so the runtime window
+icon and the `.ico` come from the same definition. Generate the `.ico` and commit
+it; it is used for the exe's embedded icon and the MSI's `ARPPRODUCTICON`.
+
+```powershell
+dotnet build tools/MakeIcon/MakeIcon.csproj -c Release
+.\bin\MakeIcon\Release\net48\MakeIcon.exe src/app.ico
+```
+
+Re-run that after changing the icon art. CI regenerates it and fails if the
+committed `.ico` no longer matches.
 
 ### Installer (MSI)
 

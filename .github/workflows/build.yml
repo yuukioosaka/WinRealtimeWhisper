@@ -37,6 +37,21 @@ jobs:
       - name: Build (Release)
         run: dotnet build src/WinRealtimeWhisper.csproj -c Release --no-restore
 
+      - name: Regenerate and verify app icon
+        shell: pwsh
+        run: |
+          # src/app.ico の元は tools/MakeIcon（中身は AppIcons.Draw）。
+          # 生成し直して、コミット済みの .ico と一致することを確かめる。
+          dotnet build tools/MakeIcon/MakeIcon.csproj -c Release
+          Copy-Item src/app.ico "$env:RUNNER_TEMP/app.ico"
+          & "./bin/MakeIcon/Release/net48/MakeIcon.exe" src/app.ico
+          $before = (Get-FileHash "$env:RUNNER_TEMP/app.ico" -Algorithm SHA256).Hash
+          $after = (Get-FileHash src/app.ico -Algorithm SHA256).Hash
+          if ($before -ne $after) {
+            throw "src/app.ico is out of date. Run tools/MakeIcon and commit the result."
+          }
+          Write-Host "OK: src/app.ico matches AppIcons.Draw"
+
       - name: Verify build output
         shell: pwsh
         run: |

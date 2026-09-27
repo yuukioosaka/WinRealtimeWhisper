@@ -26,68 +26,90 @@ namespace WinRealtimeWhisper
 
         private static Icon Build()
         {
-            const int size = 32;
+            return IconFromBitmap(Draw(32));
+        }
 
-            using (var bitmap = new Bitmap(size, size))
+        /// <summary>
+        /// アイコンを描く。32px を基準に、指定サイズへ拡大して使う。
+        /// ビルドツールが .ico を書き出すときにも使う。
+        /// </summary>
+        internal static Bitmap Draw(int size)
+        {
+            var bitmap = new Bitmap(size, size);
+            float scale = size / 32f;
+
+            using (var g = Graphics.FromImage(bitmap))
             {
-                using (var g = Graphics.FromImage(bitmap))
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.Clear(Color.Transparent);
+
+                // 背景の角丸
+                using (var background = new SolidBrush(Color.FromArgb(255, 25, 90, 155)))
+                using (var path = RoundedRect(Scaled(0, 0, 31, 31, scale), (int)Math.Round(7 * scale)))
                 {
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    g.Clear(Color.Transparent);
-
-                    // 背景の角丸
-                    using (var background = new SolidBrush(Color.FromArgb(255, 25, 90, 155)))
-                    using (var path = RoundedRect(new Rectangle(0, 0, size - 1, size - 1), 7))
-                    {
-                        g.FillPath(background, path);
-                    }
-
-                    // マイクのカプセル
-                    using (var body = new SolidBrush(Color.White))
-                    using (var capsule = RoundedRect(new Rectangle(12, 6, 8, 13), 4))
-                    {
-                        g.FillPath(body, capsule);
-                    }
-
-                    // マイクの受け皿
-                    using (var pen = new Pen(Color.White, 2f))
-                    {
-                        pen.StartCap = LineCap.Round;
-                        pen.EndCap = LineCap.Round;
-                        g.DrawArc(pen, new Rectangle(8, 13, 16, 10), 0, 180);
-                    }
-
-                    // マイクの脚
-                    using (var pen = new Pen(Color.White, 2f))
-                    {
-                        pen.StartCap = LineCap.Round;
-                        pen.EndCap = LineCap.Round;
-                        g.DrawLine(pen, 16, 24, 16, 27);
-                        g.DrawLine(pen, 12, 28, 20, 28);
-                    }
-
-                    // 左下の入力レベル（小さいバー）
-                    using (var accent = new SolidBrush(Color.FromArgb(230, 255, 214, 102)))
-                    {
-                        g.FillRectangle(accent, 4, 21, 2, 7);
-                        g.FillRectangle(accent, 7, 18, 2, 10);
-                    }
+                    g.FillPath(background, path);
                 }
 
-                IntPtr handle = bitmap.GetHicon();
-                try
+                // マイクのカプセル
+                using (var body = new SolidBrush(Color.White))
+                using (var capsule = RoundedRect(Scaled(12, 6, 8, 13, scale), (int)Math.Round(4 * scale)))
                 {
-                    using (var fromHandle = Icon.FromHandle(handle))
-                    {
-                        // GetHicon のハンドルは呼び出し側が破棄する必要があるため、複製して返す
-                        return (Icon)fromHandle.Clone();
-                    }
+                    g.FillPath(body, capsule);
                 }
-                finally
+
+                // マイクの受け皿
+                using (var pen = new Pen(Color.White, Math.Max(1f, 2f * scale)))
                 {
-                    NativeMethods.DestroyIcon(handle);
+                    pen.StartCap = LineCap.Round;
+                    pen.EndCap = LineCap.Round;
+                    g.DrawArc(pen, Scaled(8, 13, 16, 10, scale), 0, 180);
                 }
+
+                // マイクの脚
+                using (var pen = new Pen(Color.White, Math.Max(1f, 2f * scale)))
+                {
+                    pen.StartCap = LineCap.Round;
+                    pen.EndCap = LineCap.Round;
+                    g.DrawLine(pen, 16 * scale, 24 * scale, 16 * scale, 27 * scale);
+                    g.DrawLine(pen, 12 * scale, 28 * scale, 20 * scale, 28 * scale);
+                }
+
+                // 左下の入力レベル（小さいバー）
+                using (var accent = new SolidBrush(Color.FromArgb(230, 255, 214, 102)))
+                {
+                    g.FillRectangle(accent, 4 * scale, 21 * scale, 2 * scale, 7 * scale);
+                    g.FillRectangle(accent, 7 * scale, 18 * scale, 2 * scale, 10 * scale);
+                }
+            }
+
+            return bitmap;
+        }
+
+        private static Rectangle Scaled(int x, int y, int width, int height, float scale)
+        {
+            return new Rectangle(
+                (int)Math.Round(x * scale),
+                (int)Math.Round(y * scale),
+                Math.Max(1, (int)Math.Round(width * scale)),
+                Math.Max(1, (int)Math.Round(height * scale)));
+        }
+
+        private static Icon IconFromBitmap(Bitmap bitmap)
+        {
+            IntPtr handle = bitmap.GetHicon();
+            try
+            {
+                using (var fromHandle = Icon.FromHandle(handle))
+                {
+                    // GetHicon のハンドルは呼び出し側が破棄する必要があるため、複製して返す
+                    return (Icon)fromHandle.Clone();
+                }
+            }
+            finally
+            {
+                NativeMethods.DestroyIcon(handle);
             }
         }
 

@@ -18,6 +18,8 @@
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     <Deterministic>true</Deterministic>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe に埋め込むアイコン。中身は tools/MakeIcon が AppIcons.Draw から生成する。 -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en;ja</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);MSB3270</NoWarn>
   </PropertyGroup>
@@ -70,9 +72,12 @@
   </Target>
 
   <ItemGroup>
-    <!-- tools/SmokeTest から内部クラスを直接検証できるようにする -->
+    <!-- tools/SmokeTest と tools/MakeIcon から内部クラスを直接使えるようにする -->
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>SmokeTest</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MakeIcon</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 
