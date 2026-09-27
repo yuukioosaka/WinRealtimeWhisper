@@ -106,13 +106,28 @@ jobs:
         run: dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj -c Release -p:ProductVersion=${{ steps.version.outputs.version }}
 
       - name: List installer
-        run: Get-ChildItem "bin/WinRealtimeWhisper.Setup/x64/Release" -Filter *.msi | Format-Table Name, Length
+        run: Get-ChildItem "bin/WinRealtimeWhisper.Setup/x64/Release" -Recurse -Filter *.msi | Format-Table FullName, Length
+
+      - name: Rename installers per language
+        shell: pwsh
+        run: |
+          # WiX は言語ごとに同名の MSI を別フォルダに出すので、配布名を分ける。
+          $version = "${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path "dist" | Out-Null
+          foreach ($culture in @('ja-JP', 'en-US')) {
+            $src = "bin/WinRealtimeWhisper.Setup/x64/Release/$culture/WinRealtimeWhisper-$version-setup.msi"
+            if (-not (Test-Path $src)) { throw "MSI not found: $src" }
+            $dest = "dist/WinRealtimeWhisper-$version-setup-$($culture.ToLower()).msi"
+            Copy-Item $src $dest
+            Write-Host "$src -> $dest"
+          }
+          Get-ChildItem "dist" | Format-Table Name, Length
 
       - name: Upload installer
         uses: actions/upload-artifact@v5
         with:
           name: WinRealtimeWhisper-installer
-          path: bin/WinRealtimeWhisper.Setup/x64/Release/*.msi
+          path: dist/*.msi
           if-no-files-found: error
 
   release:

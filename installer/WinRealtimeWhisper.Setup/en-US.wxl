@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English installer UI. This is the default culture used when the machine
+  culture does not match any other localization file.
+-->
+<WixLocalization xmlns="http://wixtoolset.org/schemas/v4/wxl"
+                 Culture="en-US"
+                 Codepage="1252">
+
+  <String Id="ProductName" Value="WinRealtimeWhisper" />
+  <String Id="ShortcutDescription" Value="Real-time transcription" />
+
+  <String Id="LaunchCondition_Windows11" Value="WinRealtimeWhisper requires Windows 11 or later." />
+  <String Id="LaunchCondition_Downgrade" Value="A newer version of [ProductName] is already installed." />
+
+</WixLocalization>

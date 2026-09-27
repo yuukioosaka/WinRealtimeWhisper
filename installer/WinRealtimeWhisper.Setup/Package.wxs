@@ -14,10 +14,17 @@
            UpgradeCode="7D2B4F16-9A3C-4E58-B0D1-2C6E8A5F4937"
            Scope="perMachine"
            Compressed="yes"
-           Codepage="65001"
-           Language="1041">
+           Codepage="932"
+           Language="0">
 
-    <MajorUpgrade DowngradeErrorMessage="!([ProductName]) のより新しいバージョンが既にインストールされています。" />
+    <!--
+      インストーラー UI の言語は ja-JP.wxl / en-US.wxl から選ばれる。
+      実行環境の UI カルチャに一致するものが使われ、
+      一致しない場合はビルド時の既定カルチャ（en-US）になる。
+    -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <MajorUpgrade DowngradeErrorMessage="!(loc.LaunchCondition_Downgrade)" />
 
     <!--
       Windows 11 のみを対象にする。VersionNT / WindowsBuild は Win10 以降
@@ -26,7 +33,7 @@
     -->
     <Launch
       Condition="Installed OR (WIN11BUILD &gt;= 22000)"
-      Message="WinRealtimeWhisper は Windows 11 以降でのみ動作します。" />
+      Message="!(loc.LaunchCondition_Windows11)" />
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -72,7 +79,7 @@
       <Component Id="StartMenuShortcut" Guid="*">
         <Shortcut Id="StartMenuLink"
                   Name="WinRealtimeWhisper"
-                  Description="リアルタイム文字起こし"
+                  Description="!(loc.ShortcutDescription)"
                   Target="[INSTALLFOLDER]WinRealtimeWhisper.exe"
                   WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="RemoveProgramsFolder" On="uninstall" />
@@ -84,7 +91,7 @@
       <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="*">
         <Shortcut Id="DesktopLink"
                   Name="WinRealtimeWhisper"
-                  Description="リアルタイム文字起こし"
+                  Description="!(loc.ShortcutDescription)"
                   Target="[INSTALLFOLDER]WinRealtimeWhisper.exe"
                   WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU" Key="Software\WinRealtimeWhisper"
@@ -108,9 +115,5 @@
     アプリ本体の ComponentGroup はここでは書かず、ビルド時に生成する。
     詳細は WinRealtimeWhisper.Setup.wixproj の ScanAppFiles ターゲットを参照。
   -->
-
-  <Fragment>
-    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
-  </Fragment>
 
 </Wix>

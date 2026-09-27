@@ -64,8 +64,19 @@ dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj
   -c Release -p:ProductVersion=1.0.0
 ```
 
-The installer lands in `bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi`.
+The installer lands in a folder per language:
+
+| File | Language |
+| --- | --- |
+| `bin\WinRealtimeWhisper.Setup\x64\Release\ja-JP\WinRealtimeWhisper-1.0.0-setup.msi` | Japanese |
+| `bin\WinRealtimeWhisper.Setup\x64\Release\en-US\WinRealtimeWhisper-1.0.0-setup.msi` | English (default culture) |
+
 Because it is an MSI it needs administrator rights (it installs into `Program Files`).
+
+Installer strings live in `ja-JP.wxl` / `en-US.wxl` (`WixLocalization`).
+The file matching the machine's UI culture is used, falling back to the build
+default of `en-US`. The wizard's language is baked into each MSI, so you pick the
+language by picking which MSI to distribute.
 
 The list of application files is not written by hand. WiX's `Files` element picks up
 the app output folder (`bin\WinRealtimeWhisper\Release\net48`) recursively, so adding a
@@ -74,8 +85,8 @@ dependency does not require touching the installer.
 A silent install is useful for testing (run it from an elevated prompt):
 
 ```powershell
-msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
-msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\en-US\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\en-US\WinRealtimeWhisper-1.0.0-setup.msi /qn
 ```
 
 ### Continuous integration

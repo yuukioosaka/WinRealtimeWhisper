@@ -62,8 +62,19 @@ dotnet build installer/WinRealtimeWhisper.Setup/WinRealtimeWhisper.Setup.wixproj
   -c Release -p:ProductVersion=1.0.0
 ```
 
-出力は `bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi` です。
+出力は言語ごとに分かれます。
+
+| ファイル | 内容 |
+| --- | --- |
+| `bin\WinRealtimeWhisper.Setup\x64\Release\ja-JP\WinRealtimeWhisper-1.0.0-setup.msi` | 日本語 UI |
+| `bin\WinRealtimeWhisper.Setup\x64\Release\en-US\WinRealtimeWhisper-1.0.0-setup.msi` | 英語 UI（既定カルチャ） |
+
 MSI なので管理者権限が必要です（`Program Files` にインストールします）。
+
+インストーラーの文言は `ja-JP.wxl` / `en-US.wxl`（`WixLocalization`）で管理しています。
+実行環境の UI カルチャに一致する wxl が使われ、一致しない場合はビルド既定の
+`en-US` にフォールバックします。ウィザード画面の言語は MSI に埋め込まれるため、
+配布する MSI を選ぶことで言語を決められます。
 
 アプリ本体のファイル一覧は手書きしていません。WiX の `Files` 要素が
 アプリの出力フォルダ（`bin\WinRealtimeWhisper\Release\net48`）を再帰的に取り込むため、
@@ -72,8 +83,8 @@ MSI なので管理者権限が必要です（`Program Files` にインストー
 動作確認にはサイレントインストールが便利です（管理者権限で実行してください）。
 
 ```powershell
-msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
-msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /i .\bin\WinRealtimeWhisper.Setup\x64\Release\ja-JP\WinRealtimeWhisper-1.0.0-setup.msi /qn
+msiexec /x .\bin\WinRealtimeWhisper.Setup\x64\Release\ja-JP\WinRealtimeWhisper-1.0.0-setup.msi /qn
 ```
 
 ### CI（GitHub Actions）

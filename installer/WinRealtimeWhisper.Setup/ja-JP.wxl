@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  日本語のインストーラー UI。
+  既定カルチャは en-US（Package.wxs の <ui:WixUI Culture="en-US">）。
+  日本語環境では .wxl の Culture を見て自動的にこちらが選ばれる。
+-->
+<WixLocalization xmlns="http://wixtoolset.org/schemas/v4/wxl"
+                 Culture="ja-JP"
+                 Codepage="932">
+
+  <String Id="ProductName" Value="WinRealtimeWhisper" />
+  <String Id="ShortcutDescription" Value="リアルタイム文字起こし" />
+
+  <String Id="LaunchCondition_Windows11" Value="WinRealtimeWhisper は Windows 11 以降でのみ動作します。" />
+  <String Id="LaunchCondition_Downgrade" Value="より新しいバージョンの [ProductName] が既にインストールされています。" />
+
+</WixLocalization>
