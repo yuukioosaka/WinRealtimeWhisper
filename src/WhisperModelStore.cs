@@ -61,7 +61,7 @@ namespace WinRealtimeWhisper
 
         public static string PathFor(string fileName)
         {
-            return Path.Combine(AppSettings.ModelDirectory, fileName);
+            return Path.Combine(AppSettings.ModelDirectoryEffective, fileName);
         }
 
         public static bool Exists(string fileName)
@@ -96,7 +96,7 @@ namespace WinRealtimeWhisper
             IProgress<long> progress,
             CancellationToken cancellationToken)
         {
-            string dir = AppSettings.ModelDirectory;
+            string dir = AppSettings.ModelDirectoryEffective;
             Directory.CreateDirectory(dir);
 
             string finalPath = PathFor(fileName);

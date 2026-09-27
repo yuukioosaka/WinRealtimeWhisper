@@ -22,17 +22,43 @@ namespace WinRealtimeWhisper
         private CheckBox _chkUseInput;
         private ComboBox _cmbModel;
         private ComboBox _cmbLanguage;
+        private ComboBox _cmbCycle;
         private Label _lblModelState;
-        private Label _lblPaths;
 
         private Button _btnDownload;
-        private Button _btnOpenFolder;
+        private TextBox _txtHistoryDir;
+        private TextBox _txtWavDir;
+        private TextBox _txtModelDir;
+        private TextBox _txtLogDir;
+        private Button _btnHistoryDir;
+        private Button _btnWavDir;
+        private Button _btnModelDir;
+        private Button _btnLogDir;
         private Button _btnOk;
         private Button _btnCancel;
         private ProgressBar _progress;
         private Label _lblProgress;
 
         private bool _busy;
+
+        /// <summary>区切りのサイクル（秒）。短いほど表示が速いが、精度は落ちる。</summary>
+        internal static readonly int[] CycleChoices = { 5, 10, 15, 30 };
+
+        /// <summary>区切りサイクルのコンボの 1 項目。</summary>
+        private sealed class CycleItem
+        {
+            public CycleItem(int seconds)
+            {
+                Seconds = seconds;
+            }
+
+            public int Seconds { get; private set; }
+
+            public override string ToString()
+            {
+                return Loc.T("settings.audio.cycleItem", Seconds);
+            }
+        }
 
         public SettingsForm(AppSettings settings)
         {
@@ -53,7 +79,7 @@ namespace WinRealtimeWhisper
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(560, 344);
+            ClientSize = new Size(560, 384);
 
             var tabs = new TabControl
             {
@@ -143,6 +169,26 @@ namespace WinRealtimeWhisper
             _cmbInput = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 8) };
             layout.Controls.Add(_cmbInput, 1, 3);
 
+            layout.Controls.Add(NewLabel(Loc.T("settings.audio.cycle")), 0, 4);
+            _cmbCycle = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160, Margin = new Padding(3, 2, 3, 8) };
+            foreach (int seconds in CycleChoices)
+            {
+                _cmbCycle.Items.Add(new CycleItem(seconds));
+            }
+
+            layout.Controls.Add(_cmbCycle, 1, 4);
+
+            var cycleNote = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(500, 0),
+                Margin = new Padding(3, 0, 3, 8),
+                ForeColor = Color.DimGray,
+                Text = Loc.T("settings.audio.cycleNote")
+            };
+            layout.Controls.Add(cycleNote, 0, 5);
+            layout.SetColumnSpan(cycleNote, 2);
+
             var note = new Label
             {
                 AutoSize = true,
@@ -151,7 +197,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.note")
             };
-            layout.Controls.Add(note, 0, 4);
+            layout.Controls.Add(note, 0, 6);
             layout.SetColumnSpan(note, 2);
 
             page.Controls.Add(layout);
@@ -273,28 +319,94 @@ namespace WinRealtimeWhisper
         {
             var page = new TabPage(Loc.T("settings.tab.storage")) { Padding = new Padding(12), BackColor = SystemColors.Control };
 
-            _lblPaths = new Label
+            var layout = new TableLayoutPanel
             {
+                Dock = DockStyle.Top,
                 AutoSize = true,
-                ForeColor = Color.DimGray
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 3,
+                RowCount = 4
             };
-
-            _btnOpenFolder = new Button { Text = Loc.T("settings.storage.openFolder"), Width = 150, Height = 28, Dock = DockStyle.Top };
-            _btnOpenFolder.Click += (s, e) => OpenFolder(HistoryStore.RootDirectory);
-
-            var inner = new TableLayoutPanel
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            for (int i = 0; i < 4; i++)
             {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2
-            };
-            inner.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            inner.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            inner.Controls.Add(_btnOpenFolder, 0, 0);
-            inner.Controls.Add(_lblPaths, 0, 1);
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            }
 
-            page.Controls.Add(inner);
+            _txtHistoryDir = AddPathRow(layout, 0, "settings.storage.textLabel",
+                _settings.HistoryDirectory, _settings.ResolveHistoryDirectory,
+                out _btnHistoryDir);
+            _txtWavDir = AddPathRow(layout, 1, "settings.storage.wavLabel",
+                _settings.WavDirectory, _settings.ResolveWavDirectory,
+                out _btnWavDir);
+            _txtModelDir = AddPathRow(layout, 2, "settings.storage.modelLabel",
+                _settings.ModelDirectory, _settings.ResolveModelDirectory,
+                out _btnModelDir);
+            _txtLogDir = AddPathRow(layout, 3, "settings.storage.logLabel",
+                _settings.LogDirectory, _settings.ResolveLogDirectory,
+                out _btnLogDir);
+
+            page.Controls.Add(layout);
             return page;
+        }
+
+        /// <summary>「ラベル｜テキストボックス｜参照ボタン」の 1 行を追加して、テキストボックスを返す。</summary>
+        private TextBox AddPathRow(TableLayoutPanel layout, int row, string labelKey,
+            string currentValue, Func<string> resolve, out Button browse)
+        {
+            layout.Controls.Add(NewLabel(Loc.T(labelKey)), 0, row);
+
+            // 未設定でも実際に使われる既定のパスを見せる。
+            string shown = string.IsNullOrWhiteSpace(currentValue) ? resolve() : currentValue;
+
+            var box = new TextBox
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 6, 6),
+                Text = shown ?? string.Empty
+            };
+            layout.Controls.Add(box, 1, row);
+
+            var button = new Button
+            {
+                Text = Loc.T("settings.storage.browse"),
+                Width = 90,
+                Height = 25,
+                Margin = new Padding(0, 2, 0, 4)
+            };
+            button.Click += (s, e) => BrowseFolder(box, Loc.T(labelKey), resolve);
+            layout.Controls.Add(button, 2, row);
+
+            browse = button;
+            return box;
+        }
+
+        /// <summary>フォルダーを選ばせる。選んだらテキストボックスに入れる。</summary>
+        private void BrowseFolder(TextBox target, string title, Func<string> resolve)
+        {
+            using (var dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = title;
+                dialog.ShowNewFolderButton = true;
+
+                string current = (target.Text ?? string.Empty).Trim();
+                if (current.Length == 0)
+                {
+                    current = resolve != null ? resolve() : string.Empty;
+                }
+
+                if (!string.IsNullOrEmpty(current) && Directory.Exists(current))
+                {
+                    dialog.SelectedPath = current;
+                }
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    target.Text = dialog.SelectedPath;
+                }
+            }
         }
 
         private static Label NewLabel(string text)
@@ -349,9 +461,24 @@ namespace WinRealtimeWhisper
 
             SelectLanguageInCombo(_settings.ResolveUiLanguage());
             SelectModelInCombo(_settings.ModelPath);
+            SelectCycleInCombo(_settings.MaxChunkSeconds);
+
+            // 未設定でも実際に使われる既定のパスを初期表示する。
+            _txtHistoryDir.Text = string.IsNullOrWhiteSpace(_settings.HistoryDirectory)
+                ? _settings.ResolveHistoryDirectory()
+                : _settings.HistoryDirectory;
+            _txtWavDir.Text = string.IsNullOrWhiteSpace(_settings.WavDirectory)
+                ? _settings.ResolveWavDirectory()
+                : _settings.WavDirectory;
+            _txtModelDir.Text = string.IsNullOrWhiteSpace(_settings.ModelDirectory)
+                ? _settings.ResolveModelDirectory()
+                : _settings.ModelDirectory;
+            _txtLogDir.Text = string.IsNullOrWhiteSpace(_settings.LogDirectory)
+                ? _settings.ResolveLogDirectory()
+                : _settings.LogDirectory;
+
             UpdateModelState();
             UpdateEnabled();
-            UpdatePaths();
         }
 
         private static int IndexOfId(List<AudioDeviceItem> items, string id)
@@ -376,15 +503,6 @@ namespace WinRealtimeWhisper
         {
             _cmbOutput.Enabled = _chkUseOutput.Checked && !_busy;
             _cmbInput.Enabled = _chkUseInput.Checked && !_busy;
-        }
-
-        private void UpdatePaths()
-        {
-            _lblPaths.Text = Loc.T("settings.storage.paths",
-                HistoryStore.RootDirectory,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "WinRealtimeWhisper", "wav"),
-                AppSettings.ModelDirectory,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinRealtimeWhisper", "logs"));
         }
 
         /// <summary>コンボの選択から ggml のファイル名を取り出す。</summary>
@@ -439,6 +557,31 @@ namespace WinRealtimeWhisper
             }
 
             _cmbModel.Text = modelPath ?? string.Empty;
+        }
+
+        /// <summary>現在のサイクルに最も近い選択肢を選ぶ。</summary>
+        private void SelectCycleInCombo(double maxChunkSeconds)
+        {
+            int best = 0;
+            double bestDiff = double.MaxValue;
+
+            for (int i = 0; i < _cmbCycle.Items.Count; i++)
+            {
+                var item = _cmbCycle.Items[i] as CycleItem;
+                if (item == null)
+                {
+                    continue;
+                }
+
+                double diff = Math.Abs(item.Seconds - maxChunkSeconds);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    best = i;
+                }
+            }
+
+            _cmbCycle.SelectedIndex = best;
         }
 
         private void UpdateModelState()
@@ -539,6 +682,13 @@ namespace WinRealtimeWhisper
             }
         }
 
+        /// <summary>テキストボックスの内容を、空なら null として返す。</summary>
+        private static string TrimmedOrNull(string text)
+        {
+            string value = (text ?? string.Empty).Trim();
+            return value.Length == 0 ? null : value;
+        }
+
         /// <summary>OK が押されたときだけ呼ぶ。ダイアログの内容を設定へ反映する。</summary>
         public void ApplyToSettings()
         {
@@ -569,6 +719,67 @@ namespace WinRealtimeWhisper
             {
                 _settings.UiLanguage = Loc.CodeFor(language.Language);
             }
+
+            var cycle = _cmbCycle.SelectedItem as CycleItem;
+            if (cycle != null)
+            {
+                _settings.MaxChunkSeconds = cycle.Seconds;
+            }
+
+            // 既定のパスと同じなら「未設定」として保存する。
+            // 表示は既定値でも、保存値は空にして将来の既定変更に追従させる。
+            _settings.HistoryDirectory = KeepIfNotDefault(_txtHistoryDir.Text, DefaultHistoryDirectory());
+            _settings.WavDirectory = KeepIfNotDefault(_txtWavDir.Text, DefaultWavDirectory());
+            _settings.ModelDirectory = KeepIfNotDefault(_txtModelDir.Text, DefaultModelDirectory());
+            _settings.LogDirectory = KeepIfNotDefault(_txtLogDir.Text, DefaultLogDirectory());
+        }
+
+        /// <summary>入力が既定パスと同じなら空（未設定）を返す。</summary>
+        private static string KeepIfNotDefault(string text, string defaultPath)
+        {
+            string value = TrimmedOrNull(text);
+            if (value == null)
+            {
+                return string.Empty;
+            }
+
+            return string.Equals(value, defaultPath, StringComparison.OrdinalIgnoreCase)
+                ? string.Empty
+                : value;
+        }
+
+        // 既定値は設定に依存せずに求める必要がある。
+        // (設定が変更済みだと ResolveXxx() は変更後の値を返すため)
+        private static string DefaultHistoryDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "WinRealtimeWhisper",
+                "history");
+        }
+
+        private static string DefaultWavDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "WinRealtimeWhisper",
+                "wav");
+        }
+
+        private static string DefaultModelDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WinRealtimeWhisper",
+                "models");
+        }
+
+        private static string DefaultLogDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WinRealtimeWhisper",
+                "logs");
         }
     }
 }

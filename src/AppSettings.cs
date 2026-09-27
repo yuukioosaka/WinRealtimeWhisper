@@ -66,6 +66,30 @@ namespace WinRealtimeWhisper
         /// </summary>
         public string UiLanguage { get; set; }
 
+        /// <summary>
+        /// テキスト（履歴）の保存先。空なら既定の
+        /// ドキュメント\WinRealtimeWhisper\history。
+        /// </summary>
+        public string HistoryDirectory { get; set; }
+
+        /// <summary>
+        /// WAV の保存先。空なら既定のドキュメント\WinRealtimeWhisper\wav。
+        /// </summary>
+        public string WavDirectory { get; set; }
+
+        /// <summary>
+        /// モデルの保存先。空なら既定の %LOCALAPPDATA%\WinRealtimeWhisper\models。
+        /// </summary>
+        public string ModelDirectory { get; set; }
+
+        /// <summary>
+        /// ログの保存先。空なら既定の %LOCALAPPDATA%\WinRealtimeWhisper\logs。
+        /// </summary>
+        public string LogDirectory { get; set; }
+
+        /// <summary>ウィンドウを常に手前に出すか。</summary>
+        public bool AlwaysOnTop { get; set; }
+
         public AppSettings()
         {
             ModelPath = string.Empty;
@@ -75,9 +99,58 @@ namespace WinRealtimeWhisper
             InputDeviceId = string.Empty;
             SourceKind = AudioSourceKind.Both;
             LatencyProfile = 1;
-            MaxChunkSeconds = 6.0;
-            SilenceSplitSeconds = 0.45;
+            MaxChunkSeconds = 30.0;
+            SilenceSplitSeconds = 0.0;
             UiLanguage = string.Empty;
+            HistoryDirectory = string.Empty;
+            WavDirectory = string.Empty;
+            ModelDirectory = string.Empty;
+            LogDirectory = string.Empty;
+            AlwaysOnTop = false;
+        }
+
+        /// <summary>テキスト（履歴）の保存先。未設定なら既定値。</summary>
+        public string ResolveHistoryDirectory()
+        {
+            return string.IsNullOrWhiteSpace(HistoryDirectory)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "WinRealtimeWhisper",
+                    "history")
+                : HistoryDirectory;
+        }
+
+        /// <summary>WAV の保存先。未設定なら既定値。</summary>
+        public string ResolveWavDirectory()
+        {
+            return string.IsNullOrWhiteSpace(WavDirectory)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "WinRealtimeWhisper",
+                    "wav")
+                : WavDirectory;
+        }
+
+        /// <summary>モデルの保存先。未設定なら既定値。</summary>
+        public string ResolveModelDirectory()
+        {
+            return string.IsNullOrWhiteSpace(ModelDirectory)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "WinRealtimeWhisper",
+                    "models")
+                : ModelDirectory;
+        }
+
+        /// <summary>ログの保存先。未設定なら既定値。</summary>
+        public string ResolveLogDirectory()
+        {
+            return string.IsNullOrWhiteSpace(LogDirectory)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "WinRealtimeWhisper",
+                    "logs")
+                : LogDirectory;
         }
 
         /// <summary>設定と Windows の表示言語から、使う表示言語を決める。</summary>
@@ -92,8 +165,8 @@ namespace WinRealtimeWhisper
             return Loc.DetectFromSystem();
         }
 
-        /// <summary>モデルの既定の置き場。%LOCALAPPDATA%\WinRealtimeWhisper\models\</summary>
-        public static string ModelDirectory
+        /// <summary>実際に使うモデルの置き場。CLI の上書き値があればそれを返す。%LOCALAPPDATA%\WinRealtimeWhisper\models\</summary>
+        public static string ModelDirectoryEffective
         {
             get
             {
@@ -104,13 +177,23 @@ namespace WinRealtimeWhisper
             }
         }
 
-        /// <summary>--model-dir で差し替えるための上書き値。プロセス内でのみ有効。</summary>
+        /// <summary>--model-dir と設定の「モデルの保存先」で差し替えるための上書き値。</summary>
         public static string ModelDirectoryOverride { get; set; }
 
+        /// <summary>
+        /// 設定ファイルのパス。環境変数 WINREALTIMEWHISPER_SETTINGS で差し替えられる
+        /// （テストが実設定を壊さないようにするため）。
+        /// </summary>
         public static string FilePath
         {
             get
             {
+                string custom = Environment.GetEnvironmentVariable("WINREALTIMEWHISPER_SETTINGS");
+                if (!string.IsNullOrEmpty(custom))
+                {
+                    return custom;
+                }
+
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "WinRealtimeWhisper",
@@ -135,6 +218,19 @@ namespace WinRealtimeWhisper
                     if (values.TryGetValue("OutputDeviceId", out v)) s.OutputDeviceId = v;
                     if (values.TryGetValue("InputDeviceId", out v)) s.InputDeviceId = v;
                     if (values.TryGetValue("UiLanguage", out v)) s.UiLanguage = v;
+                    if (values.TryGetValue("HistoryDirectory", out v)) s.HistoryDirectory = v;
+                    if (values.TryGetValue("WavDirectory", out v)) s.WavDirectory = v;
+                    if (values.TryGetValue("ModelDirectory", out v)) s.ModelDirectory = v;
+                    if (values.TryGetValue("LogDirectory", out v)) s.LogDirectory = v;
+
+                    if (values.TryGetValue("AlwaysOnTop", out v))
+                    {
+                        bool onTop;
+                        if (bool.TryParse(v, out onTop))
+                        {
+                            s.AlwaysOnTop = onTop;
+                        }
+                    }
 
                     // 旧形式の DeviceId は出力デバイスとして引き継ぐ
                     if (values.TryGetValue("DeviceId", out v) && v.Length > 0)
@@ -208,6 +304,11 @@ namespace WinRealtimeWhisper
             AppendValue(sb, "OutputDeviceId", OutputDeviceId, true);
             AppendValue(sb, "InputDeviceId", InputDeviceId, true);
             AppendValue(sb, "UiLanguage", UiLanguage, true);
+            AppendValue(sb, "HistoryDirectory", HistoryDirectory, true);
+            AppendValue(sb, "WavDirectory", WavDirectory, true);
+            AppendValue(sb, "ModelDirectory", ModelDirectory, true);
+            AppendValue(sb, "LogDirectory", LogDirectory, true);
+            sb.AppendLine("  \"AlwaysOnTop\": " + (AlwaysOnTop ? "true" : "false") + ",");
             sb.AppendLine("  \"LatencyProfile\": " + LatencyProfile + ",");
             sb.AppendLine("  \"MaxChunkSeconds\": " + MaxChunkSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");

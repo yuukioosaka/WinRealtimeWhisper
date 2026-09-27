@@ -40,6 +40,7 @@ dropping to `base` or `tiny` makes a large difference.
 | File | Start recording | `F5` |
 | File | Stop recording | `F6` |
 | File | Exit | `Alt+F4` |
+| View | Always on top | — |
 | Tools | History... | — |
 | Tools | Settings... | `Ctrl+,` |
 | Help | Open log / Open log folder / About | — |
@@ -49,28 +50,37 @@ dropping to `base` or `tiny` makes a large difference.
 | Tab | What you can set |
 | --- | --- |
 | General | Display language (Japanese / English) |
-| Audio | Toggle loopback output and microphone capture, and choose the devices |
+| Audio | Toggle loopback output and microphone capture, choose the devices, and set the **segment cycle** (5 / 10 / 15 / 30 s) |
 | Model | The ggml model to use, and download |
-| Storage | Locations of text / WAV / models / logs |
+| Storage | Folders for text / WAV / models / logs (use **Browse** to change them) |
 
 Settings are saved only when you press **OK**.
 Output and input devices can be chosen independently.
 
+The **segment cycle** is how many seconds of audio go into one recognition pass.
+Shorter means faster display but less context and lower accuracy. The default is 30 s.
+
+**View > Always on top** keeps the window above other windows. That setting is
+saved too and is restored the next time you start the app.
+
 A display-language change takes effect **the next time you start the app**.
 The recognition language (spoken language) stays Japanese.
 
-Recognition waits for a speech pause (0.45 s of silence) before it runs, so
+Recognition waits for a speech pause (0.8 s of silence) before it runs, so
 text appears roughly 1–3 seconds after you stop speaking. If no silence
-arrives, a segment is cut at 6 seconds, so the delay never exceeds about that.
+arrives, a segment is cut at the configured segment cycle (default 30 s).
 
 ## Storage locations
 
-| Kind | Location |
+| Kind | Default location |
 | --- | --- |
 | Text (history) | `Documents\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt` |
 | WAV | `Documents\WinRealtimeWhisper\wav\rec_yyyyMMdd_HHmmss.wav` (not rewritten when input is a file via `-i`) |
 | Models | `%LOCALAPPDATA%\WinRealtimeWhisper\models\` |
 | Logs | `%LOCALAPPDATA%\WinRealtimeWhisper\logs\` |
+
+Every one of these can be changed in **Settings > Storage**. Clearing a field
+restores the default.
 
 - Text is auto-saved periodically while recording, then overwritten with the
   finalized content on stop.
@@ -138,18 +148,17 @@ buffered without loss while the CPU spends seconds on inference.
 
 ### Segmentation rules
 
-These values are fixed.
-
 | Rule | Default | Meaning |
 | --- | --- | --- |
 | Minimum segment | 3 s | Do not cut below this (too short means less context and lower accuracy) |
-| Silence duration | 0.45 s | Cut when silence of this length occurs |
-| Maximum segment | 6 s | Cut here even if no silence has arrived |
+| Silence duration | 0.8 s | Cut when silence of this length occurs |
+| Maximum segment | 30 s | Cut here even if no silence has arrived (change it with the segment cycle setting) |
 | Silence RMS threshold | 0.0022 | Anything below this is treated as silence |
 
-The maximum segment length directly drives display latency. At 6 seconds,
-"start of speech to finalized text" is at worst 6 s plus inference time, and it
-appears sooner when a silence cuts the segment earlier.
+The maximum segment length directly drives display latency. At 30 seconds,
+"start of speech to finalized text" is at worst 30 s plus inference time, and it
+appears sooner when a silence cuts the segment earlier. Lower the segment cycle
+(for example to 5 s) when you want responsiveness over context.
 
 Silence-only segments are discarded without inference (Whisper tends to
 hallucinate phrases like "Thank you for watching" on silence).

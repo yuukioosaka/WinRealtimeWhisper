@@ -151,10 +151,99 @@ namespace WinRealtimeWhisperSmokeTest
                 Console.WriteLine("firstVisibleLine=" + box.GetFirstCharIndexFromLine(
                     box.GetLineFromCharIndex(box.GetCharIndexFromPosition(new Point(2, 2)))));
 
+                // 「常に最前面」のトグルがメニューから働くか
+                var miTop = FindMenuItem(f.MainMenuStrip, Loc.T("menu.view.alwaysOnTop"));
+                if (miTop == null)
+                {
+                    Console.WriteLine("EDITOR FAIL: 「常に最前面」メニューが見つかりません");
+                    exit = 1;
+                }
+                else
+                {
+                    Console.WriteLine("alwaysOnTop: checked=" + miTop.Checked + " topmost=" + f.TopMost);
+                    if (miTop.Checked != f.TopMost)
+                    {
+                        Console.WriteLine("EDITOR FAIL: メニューのチェックと TopMost が不一致");
+                        exit = 1;
+                    }
+
+                    miTop.PerformClick();
+                    Application.DoEvents();
+                    bool on = f.TopMost;
+                    Console.WriteLine("  after click: checked=" + miTop.Checked + " topmost=" + f.TopMost);
+
+                    if (on == (miTop.Checked == false) || f.TopMost != miTop.Checked)
+                    {
+                        Console.WriteLine("EDITOR FAIL: トグル後にメニューと TopMost が不一致");
+                        exit = 1;
+                    }
+
+                    if (on != true)
+                    {
+                        Console.WriteLine("EDITOR FAIL: クリックで最前面になりません");
+                        exit = 1;
+                    }
+
+                    miTop.PerformClick();
+                    Application.DoEvents();
+                    Console.WriteLine("  after 2nd click: checked=" + miTop.Checked + " topmost=" + f.TopMost);
+                    if (f.TopMost != false)
+                    {
+                        Console.WriteLine("EDITOR FAIL: クリックで最前面が解除されません");
+                        exit = 1;
+                    }
+                }
+
                 Console.WriteLine(exit == 0 ? "EDITOR OK" : "EDITOR FAIL");
             }
 
             return exit;
+        }
+
+        /// <summary>メニューを表示テキストで探す。</summary>
+        private static ToolStripMenuItem FindMenuItem(MenuStrip menu, string text)
+        {
+            if (menu == null)
+            {
+                return null;
+            }
+
+            foreach (ToolStripItem item in menu.Items)
+            {
+                var found = FindMenuItem(item, text);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static ToolStripMenuItem FindMenuItem(ToolStripItem item, string text)
+        {
+            var menuItem = item as ToolStripMenuItem;
+            if (menuItem == null)
+            {
+                return null;
+            }
+
+            string plain = menuItem.Text.Replace("&", string.Empty);
+            if (plain == text.Replace("&", string.Empty))
+            {
+                return menuItem;
+            }
+
+            foreach (ToolStripItem child in menuItem.DropDownItems)
+            {
+                var found = FindMenuItem(child, text);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         private static TextBox FindTextBox(Control parent)
@@ -179,12 +268,38 @@ namespace WinRealtimeWhisperSmokeTest
 
         private static void Save(Form f, string path)
         {
+            // CopyFromScreen はウィンドウが最前面でないと別のものが写る。
+            // フォーム自身に自分の姿を描かせる。
             var b = f.Bounds;
-            using (var bmp = new Bitmap(b.Width, b.Height))
+            using (var bmp = new Bitmap(f.ClientSize.Width, f.ClientSize.Height))
             {
-                using (var g = Graphics.FromImage(bmp))
+                bool ok = false;
+                for (int attempt = 0; attempt < 3 && !ok; attempt++)
                 {
-                    g.CopyFromScreen(b.Location, Point.Empty, b.Size);
+                    try
+                    {
+                        f.Invoke(new Action(() =>
+                        {
+                            using (var g = Graphics.FromImage(bmp))
+                            {
+                                var target = new Rectangle(0, 0, bmp.Width, bmp.Height);
+                                f.DrawToBitmap(bmp, target);
+                            }
+                        }));
+                        ok = true;
+                    }
+                    catch (Exception)
+                    {
+                        System.Threading.Thread.Sleep(50);
+                    }
+                }
+
+                if (!ok)
+                {
+                    using (var g = Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(b.Location, Point.Empty, f.ClientSize);
+                    }
                 }
 
                 bmp.Save(path, ImageFormat.Png);

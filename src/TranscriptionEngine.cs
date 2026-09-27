@@ -205,7 +205,7 @@ namespace WinRealtimeWhisper
                 string modelPath = WhisperModelStore.Resolve(settings.ModelPath);
                 if (string.IsNullOrEmpty(modelPath) || !File.Exists(modelPath))
                 {
-                    throw new FileNotFoundException(Loc.T("cli.modelMissing", modelPath ?? AppSettings.ModelDirectory));
+                    throw new FileNotFoundException(Loc.T("cli.modelMissing", modelPath ?? AppSettings.ModelDirectoryEffective));
                 }
 
                 _converter = new SampleConverter();

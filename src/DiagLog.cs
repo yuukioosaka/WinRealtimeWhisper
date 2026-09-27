@@ -40,16 +40,15 @@ namespace WinRealtimeWhisper
             get { return _enabled; }
         }
 
-        /// <summary>ログの保存先: %LOCALAPPDATA%\WinRealtimeWhisper\logs</summary>
-        public static string Directory
+        /// <summary>ログの保存先。既定は %LOCALAPPDATA%\WinRealtimeWhisper\logs。設定で差し替えられる。</summary>
+        public static string Directory { get; set; }
+
+        static DiagLog()
         {
-            get
-            {
-                return Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "WinRealtimeWhisper",
-                    "logs");
-            }
+            Directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WinRealtimeWhisper",
+                "logs");
         }
 
         /// <summary>ログファイルを開く。既に開いていれば何もしない。</summary>

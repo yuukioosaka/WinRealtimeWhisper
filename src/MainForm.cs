@@ -34,6 +34,7 @@ namespace WinRealtimeWhisper
         private ToolStripMenuItem _miHistory;
         private ToolStripMenuItem _miSettings;
         private ToolStripMenuItem _miSource;
+        private ToolStripMenuItem _miAlwaysOnTop;
 
         private ToolStrip _toolbar;
         private ToolStripButton _btnStart;
@@ -96,7 +97,7 @@ namespace WinRealtimeWhisper
         private void BuildUi()
         {
             Text = Loc.T("app.title");
-            MinimumSize = new Size(720, 520);
+            MinimumSize = new Size(520, 240);
             Size = new Size(980, 700);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Yu Gothic UI", 9f);
@@ -123,6 +124,13 @@ namespace WinRealtimeWhisper
             miFile.DropDownItems.Add(new ToolStripSeparator());
             miFile.DropDownItems.Add(miExit);
 
+            var miView = new ToolStripMenuItem(Loc.T("menu.view"));
+            _miAlwaysOnTop = new ToolStripMenuItem(Loc.T("menu.view.alwaysOnTop"), null, (s, e) => ToggleAlwaysOnTop())
+            {
+                CheckOnClick = true
+            };
+            miView.DropDownItems.Add(_miAlwaysOnTop);
+
             var miTools = new ToolStripMenuItem(Loc.T("menu.tools"));
             _miHistory = new ToolStripMenuItem(Loc.T("menu.tools.history"), null, (s, e) => ShowHistory());
             _miSettings = new ToolStripMenuItem(Loc.T("menu.tools.settings"), null, async (s, e) => await ShowSettings())
@@ -145,6 +153,7 @@ namespace WinRealtimeWhisper
             miHelp.DropDownItems.Add(miAbout);
 
             menu.Items.Add(miFile);
+            menu.Items.Add(miView);
             menu.Items.Add(miTools);
             menu.Items.Add(miHelp);
             MainMenuStrip = menu;
@@ -307,6 +316,55 @@ namespace WinRealtimeWhisper
             {
                 _settings.ModelPath = WhisperModelStore.PathFor(WhisperModelStore.DefaultModelFileName);
             }
+
+            ApplyStorageSettings();
+            ApplyAlwaysOnTop(_settings.AlwaysOnTop);
+        }
+
+        /// <summary>ウィンドウを常に手前に出すかどうかを切り替えて設定に保存する。</summary>
+        private void ToggleAlwaysOnTop()
+        {
+            ApplyAlwaysOnTop(_miAlwaysOnTop.Checked);
+            PersistSettings();
+        }
+
+        /// <summary>最前面を適用し、メニューのチェック状態も合わせる。</summary>
+        private void ApplyAlwaysOnTop(bool onTop)
+        {
+            TopMost = onTop;
+            _settings.AlwaysOnTop = onTop;
+
+            if (_miAlwaysOnTop != null && _miAlwaysOnTop.Checked != onTop)
+            {
+                _miAlwaysOnTop.Checked = onTop;
+            }
+        }
+
+        /// <summary>設定の保存先を、実際に書き込むパスへ反映する。</summary>
+        private void ApplyStorageSettings()
+        {
+            HistoryStore.RootDirectory = _settings.ResolveHistoryDirectory();
+            DiagLog.Directory = _settings.ResolveLogDirectory();
+
+            // モデルの保存先は静的プロパティ経由で参照される。
+            // CLI の --model-dir が指定されているときはそちらを優先する。
+            if (string.IsNullOrWhiteSpace(_settings.ModelDirectory))
+            {
+                AppSettings.ModelDirectoryOverride = null;
+            }
+            else
+            {
+                AppSettings.ModelDirectoryOverride = _settings.ModelDirectory;
+
+                // モデル本体も新しいフォルダのものを指すようにする。
+                string fileName = Path.GetFileName(_settings.ModelPath ?? string.Empty);
+                if (fileName.Length == 0)
+                {
+                    fileName = WhisperModelStore.DefaultModelFileName;
+                }
+
+                _settings.ModelPath = WhisperModelStore.PathFor(fileName);
+            }
         }
 
         /// <summary>確定モデルのファイル名（フルパスを含む場合もあれば、単なる名前のときもある）。</summary>
@@ -348,6 +406,7 @@ namespace WinRealtimeWhisper
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
                     dialog.ApplyToSettings();
+                    ApplyStorageSettings();
                     PersistSettings();
                     UpdateMenuText();
                 }
@@ -457,7 +516,7 @@ namespace WinRealtimeWhisper
 
             var answer = MessageBox.Show(this,
                 Loc.T("dialog.modelMissingBody", fileName,
-                    AppSettings.ModelDirectory, ApproxMb(fileName)),
+                    AppSettings.ModelDirectoryEffective, ApproxMb(fileName)),
                 Loc.T("dialog.modelMissingTitle"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
             if (answer != DialogResult.Yes)
@@ -507,7 +566,7 @@ namespace WinRealtimeWhisper
                     + Environment.NewLine + Environment.NewLine
                     + WhisperModelStore.UrlFor(fileName)
                     + Environment.NewLine
-                    + AppSettings.ModelDirectory,
+                    + AppSettings.ModelDirectoryEffective,
                     Loc.T("dialog.downloadFailedTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -654,12 +713,9 @@ namespace WinRealtimeWhisper
             UpdateButtons();
         }
 
-        private static string WavPathFor(DateTime startedAt)
+        private string WavPathFor(DateTime startedAt)
         {
-            string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "WinRealtimeWhisper",
-                "wav");
+            string dir = _settings.ResolveWavDirectory();
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "rec_" + startedAt.ToString("yyyyMMdd_HHmmss") + ".wav");
         }

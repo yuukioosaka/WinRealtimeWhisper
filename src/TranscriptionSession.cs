@@ -88,18 +88,18 @@ namespace WinRealtimeWhisper
         }
     }
 
-    /// <summary>保存先: ドキュメント\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt</summary>
+    /// <summary>保存先: (設定)\history\session_yyyyMMdd_HHmmss.txt（既定はドキュメント\WinRealtimeWhisper\history）</summary>
     internal static class HistoryStore
     {
-        public static string RootDirectory
+        /// <summary>現在のセッションで使う保存先。設定の「OK」で更新される。</summary>
+        public static string RootDirectory { get; set; }
+
+        static HistoryStore()
         {
-            get
-            {
-                return Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "WinRealtimeWhisper",
-                    "history");
-            }
+            RootDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "WinRealtimeWhisper",
+                "history");
         }
 
         public static string CreateSessionFilePath(DateTime startedAt)

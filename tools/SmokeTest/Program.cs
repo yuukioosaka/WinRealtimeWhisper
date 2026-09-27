@@ -68,7 +68,7 @@ namespace WinRealtimeWhisperSmokeTest
         private static string FindModel()
         {
             var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
-            string local = AppSettings.ModelDirectory;
+            string local = AppSettings.ModelDirectoryEffective;
 
             // リポジトリ直下の models/、%LOCALAPPDATA%\WinRealtimeWhisper\models\ の順に探す
             foreach (string root in new[] { local, Path.Combine(RepoRoot(dir), "models") })

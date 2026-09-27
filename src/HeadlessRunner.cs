@@ -38,7 +38,7 @@ namespace WinRealtimeWhisper
             {
                 Console.Error.WriteLine(Loc.T("cli.modelMissing", settings.ModelPath));
                 Console.Error.WriteLine(Loc.T("cli.modelMissingHint"));
-                Console.Error.WriteLine(Loc.T("cli.modelSearchPath", AppSettings.ModelDirectory));
+                Console.Error.WriteLine(Loc.T("cli.modelSearchPath", AppSettings.ModelDirectoryEffective));
                 return 1;
             }
 
