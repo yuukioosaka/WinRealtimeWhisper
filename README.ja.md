@@ -7,6 +7,8 @@
 
 **API キーもネットワークも不要**です。認識はすべて PC 上で完結します。
 
+![WinRealtimeWhisper の画面](demo.png)
+
 ## モデル
 
 既定は **`ggml-small.bin`（488 MB）** です。設定ダイアログの「モデル」タブで

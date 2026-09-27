@@ -8,6 +8,8 @@ text and WAV.
 
 **No API keys and no network are required.** All recognition runs on your PC.
 
+![WinRealtimeWhisper screenshot](demo.png)
+
 ## Models
 
 The default is **`ggml-small.bin` (488 MB)**. Pick `tiny` / `base` / `small` /
