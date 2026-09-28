@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
@@ -185,21 +186,38 @@ namespace WinRealtimeWhisper
                 }
                 finally
                 {
+                    // 停止は残りを全部推論してから終わる。どれだけ残っているかを
+                    // 見せないと固まったように見えるので、進捗を出しながら待つ。
+                    Task stopTask;
                     try
                     {
-                        engine.StopAsync().Wait(TimeSpan.FromSeconds(180));
-                    }
-                    catch (AggregateException ex)
-                    {
-                        Console.Error.WriteLine(Loc.T("cli.stopFailed", DiagLog.Describe(ex.GetBaseException())));
-                        failed = true;
-                        failure = failure ?? Loc.T("cli.stopFailedShort");
+                        stopTask = engine.StopAsync();
                     }
                     catch (Exception ex)
                     {
                         Console.Error.WriteLine(Loc.T("cli.stopFailed", DiagLog.Describe(ex)));
                         failed = true;
                         failure = failure ?? Loc.T("cli.stopFailedShort");
+                        stopTask = null;
+                    }
+
+                    if (stopTask != null)
+                    {
+                        WaitWithProgress(stopTask, engine, TimeSpan.FromSeconds(180));
+
+                        if (stopTask.IsFaulted)
+                        {
+                            Exception ex = stopTask.Exception.GetBaseException();
+                            Console.Error.WriteLine(Loc.T("cli.stopFailed", DiagLog.Describe(ex)));
+                            failed = true;
+                            failure = failure ?? Loc.T("cli.stopFailedShort");
+                        }
+                        else if (!stopTask.IsCompleted)
+                        {
+                            Console.Error.WriteLine(Loc.T("cli.stopFailedShort"));
+                            failed = true;
+                            failure = failure ?? Loc.T("cli.stopFailedShort");
+                        }
                     }
 
                     if (writer != null)
@@ -317,6 +335,37 @@ namespace WinRealtimeWhisper
                     return Loc.T("source.speakers");
                 default:
                     return Loc.T("source.both");
+            }
+        }
+
+        /// <summary>
+        /// 停止処理を待つ間、未確定の残量を 1 行に出し続ける。
+        /// 完了したらその行を消して、続きの出力を汚さない。
+        /// </summary>
+        private static void WaitWithProgress(
+            Task task, TranscriptionEngine engine, TimeSpan timeout)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            bool wrote = false;
+
+            while (!task.IsCompleted && sw.Elapsed < timeout)
+            {
+                if (!Console.IsOutputRedirected)
+                {
+                    string line = Loc.T("cli.backlog",
+                        engine.PendingChunks, engine.BacklogSeconds);
+                    Console.Write("\r" + line.PadRight(40));
+                    Flush();
+                    wrote = true;
+                }
+
+                Thread.Sleep(200);
+            }
+
+            if (wrote)
+            {
+                Console.Write("\r" + new string(' ', 40) + "\r");
+                Flush();
             }
         }
 

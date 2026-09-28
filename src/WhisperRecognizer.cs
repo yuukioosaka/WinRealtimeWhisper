@@ -155,6 +155,56 @@ namespace WinRealtimeWhisper
             get { return Volatile.Read(ref _droppedChunks); }
         }
 
+        /// <summary>推論待ちの区間数。停止時にこれが多いほど、確定まで時間がかかる。</summary>
+        public int PendingChunks
+        {
+            get
+            {
+                lock (_queueSync)
+                {
+                    return _chunks.Count;
+                }
+            }
+        }
+
+        /// <summary>まだ区間に切り出されていない音声のサンプル数（16kHz モノラル）。</summary>
+        public int PendingSamples
+        {
+            get
+            {
+                lock (_bufferSync)
+                {
+                    return _pending.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 停止時に確定が必要な残り時間（秒）。
+        /// 「未処理の音声」＋「推論待ちの区間」を合わせた長さ。
+        /// </summary>
+        public double BacklogSeconds
+        {
+            get
+            {
+                long samples;
+                lock (_bufferSync)
+                {
+                    samples = _pending.Count;
+                }
+
+                lock (_queueSync)
+                {
+                    foreach (var chunk in _chunks)
+                    {
+                        samples += chunk.Samples.Length;
+                    }
+                }
+
+                return (double)samples / SampleRate;
+            }
+        }
+
         /// <summary>推論の準備（モデル読み込み）を行う。失敗時は例外を投げる。</summary>
         public void Initialize()
         {

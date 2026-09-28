@@ -111,6 +111,29 @@ namespace WinRealtimeWhisper
             }
         }
 
+        /// <summary>推論待ちの区間数。</summary>
+        public int PendingChunks
+        {
+            get
+            {
+                var r = _recognizer;
+                return r != null ? r.PendingChunks : 0;
+            }
+        }
+
+        /// <summary>
+        /// 停止時に確定が必要な残り時間（秒）。
+        /// 未処理の音声と推論待ちの区間を合わせた長さで、停止が長引く目安になる。
+        /// </summary>
+        public double BacklogSeconds
+        {
+            get
+            {
+                var r = _recognizer;
+                return r != null ? r.BacklogSeconds : 0;
+            }
+        }
+
         public TimeSpan WavDuration
         {
             get

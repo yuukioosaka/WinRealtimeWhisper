@@ -22,6 +22,7 @@ namespace WinRealtimeWhisper
         private bool _saveQueued;
         private DateTime _lastTextUtc = DateTime.MinValue;
         private bool _starting;
+        private bool _stopping;
         private bool _downloading;
 
         private readonly StringBuilder _display = new StringBuilder();
@@ -39,8 +40,8 @@ namespace WinRealtimeWhisper
         private ToolStrip _toolbar;
         private ToolStripButton _btnStart;
         private ToolStripButton _btnStop;
-        private ToolStripLabel _lblStatus;
         private ToolStripLabel _lblTimer;
+        private ToolStripLabel _lblBacklog;
         private TextBox _txtLive;
         private Label _lblPending;
         private ProgressBar _levelBar;
@@ -84,6 +85,7 @@ namespace WinRealtimeWhisper
 
             UpdateButtons();
             UpdateMenuText();
+            SetStatus(Loc.T("status.idle"));
 
             // モデルが無ければ起動時に自動でダウンロードする
             Shown += async (s, e) =>
@@ -185,18 +187,21 @@ namespace WinRealtimeWhisper
             };
             _btnStop.Click += async (s, e) => await StopRecordingAsync();
 
-            _lblStatus = new ToolStripLabel(Loc.T("status.idle"))
-            {
-                ForeColor = Color.DimGray,
-                Padding = new Padding(10, 0, 0, 0)
-            };
-
             _lblTimer = new ToolStripLabel("00:00:00")
             {
                 Font = new Font("Consolas", 10f),
                 ForeColor = Color.DimGray,
                 Padding = new Padding(8, 0, 8, 0),
                 ToolTipText = Loc.T("toolbar.timerTip")
+            };
+
+            _lblBacklog = new ToolStripLabel()
+            {
+                Font = new Font("Consolas", 9f),
+                ForeColor = Color.DimGray,
+                Padding = new Padding(8, 0, 8, 0),
+                ToolTipText = Loc.T("toolbar.backlogTip"),
+                Visible = false
             };
 
             _levelBar = new ProgressBar()
@@ -209,14 +214,13 @@ namespace WinRealtimeWhisper
                 Style = ProgressBarStyle.Continuous
             };
 
-            // 録音操作と状態はすべて 1 本のツールバーにまとめる
+            // 左から「録音/再生 | 時間 | インジケーター | 未確定」の順に並べる。
+            // 状態メッセージはツールバーではなくタイトルバーに出す。
             _toolbar.Items.Add(_btnStart);
             _toolbar.Items.Add(_btnStop);
-            _toolbar.Items.Add(new ToolStripSeparator());
-            _toolbar.Items.Add(_lblStatus);
-            _toolbar.Items.Add(new ToolStripSeparator());
             _toolbar.Items.Add(_lblTimer);
-            _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(6, 0, 0, 0) });
+            _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(6, 0, 6, 0) });
+            _toolbar.Items.Add(_lblBacklog);
 
             // 本文は読み取り専用の TextBox にする（選択・コピーを可能にするため）。
             // 枠は上辺が白く光って見えるので BorderStyle は None にし、親パネル側で描く。
@@ -359,17 +363,29 @@ namespace WinRealtimeWhisper
             return Path.GetFileName(_settings.ModelPath ?? string.Empty);
         }
 
-        /// <summary>ステータスバーとタイトルに現在のモデルと音源を出す。</summary>
+        /// <summary>現在の状態メッセージ。タイトルバーに出す。</summary>
+        private string _statusText;
+
+        /// <summary>状態メッセージを設定してタイトルバーへ反映する。</summary>
+        private void SetStatus(string text)
+        {
+            _statusText = text ?? string.Empty;
+            UpdateTitle();
+        }
+
+        /// <summary>タイトルバーに状態を出す。モデル名や音源は出さない。</summary>
+        private void UpdateTitle()
+        {
+            string status = _statusText;
+            Text = string.IsNullOrEmpty(status)
+                ? Loc.T("app.title")
+                : Loc.T("app.title.status", status);
+        }
+
+        /// <summary>「音源」メニューの表示を今の設定に合わせる。</summary>
         private void UpdateMenuText()
         {
-            string model = CurrentModelFileName();
-            string source = SourceLabel();
-            _miSource.Text = Loc.T("menu.tools.source", source);
-
-            if (!_engine.IsRecording && !_starting)
-            {
-                Text = Loc.T("app.title.withState", model, source);
-            }
+            _miSource.Text = Loc.T("menu.tools.source", SourceLabel());
         }
 
         private string SourceLabel()
@@ -507,7 +523,7 @@ namespace WinRealtimeWhisper
 
             if (answer != DialogResult.Yes)
             {
-                _lblStatus.Text = Loc.T("status.noModel");
+                SetStatus(Loc.T("status.noModel"));
                 return false;
             }
 
@@ -517,7 +533,7 @@ namespace WinRealtimeWhisper
         /// <summary>指定モデルを非同期でダウンロードする。進捗はステータスバーと任意のコールバックへ出す。</summary>
         private async Task<bool> DownloadModelAsync(string fileName, IProgress<long> progress)
         {
-            _lblStatus.Text = Loc.T("settings.model.downloading", fileName);
+            SetStatus(Loc.T("settings.model.downloading", fileName));
             _downloading = true;
             UpdateButtons();
 
@@ -525,8 +541,8 @@ namespace WinRealtimeWhisper
             {
                 var info = FindModel(fileName);
                 long percent = info != null && info.ApproxBytes > 0 ? bytes * 100 / info.ApproxBytes : 0;
-                _lblStatus.Text = Loc.T("settings.model.downloadProgress",
-                    fileName, bytes / (1024 * 1024), Math.Min(100, percent));
+                SetStatus(Loc.T("settings.model.downloadProgress",
+                    fileName, bytes / (1024 * 1024), Math.Min(100, percent)));
 
                 if (progress != null)
                 {
@@ -540,13 +556,13 @@ namespace WinRealtimeWhisper
                 await WhisperModelStore.DownloadAsync(fileName, storeProgress, System.Threading.CancellationToken.None);
                 _settings.ModelPath = WhisperModelStore.PathFor(fileName);
                 PersistSettings();
-                _lblStatus.Text = Loc.T("settings.model.downloaded", fileName);
+                SetStatus(Loc.T("settings.model.downloaded", fileName));
                 ok = true;
             }
             catch (Exception ex)
             {
                 DiagLog.WriteException("モデルのダウンロードに失敗", ex);
-                _lblStatus.Text = Loc.T("settings.model.downloadFailed");
+                SetStatus(Loc.T("settings.model.downloadFailed"));
                 MessageBox.Show(this,
                     Loc.T("dialog.downloadFailedBody", DiagLog.Describe(ex), DiagLog.CurrentPath)
                     + Environment.NewLine + Environment.NewLine
@@ -622,7 +638,7 @@ namespace WinRealtimeWhisper
             _txtLive.Text = string.Empty;
             _lblPending.Text = string.Empty;
             _lblTimer.Text = "00:00:00";
-            _lblStatus.Text = Loc.T("status.starting");
+            SetStatus(Loc.T("status.starting"));
             UpdateButtons();
 
             _session = new TranscriptionSession();
@@ -638,7 +654,7 @@ namespace WinRealtimeWhisper
             }
             catch (Exception ex)
             {
-                _lblStatus.Text = Loc.T("status.startFailed", ex.Message);
+                SetStatus(Loc.T("status.startFailed", ex.Message));
                 _starting = false;
                 UpdateButtons();
             }
@@ -665,7 +681,9 @@ namespace WinRealtimeWhisper
         private async Task StopRecordingAsync()
         {
             _btnStop.Enabled = false;
-            _lblStatus.Text = Loc.T("status.stopping");
+            _stopping = true;
+            SetStatus(Loc.T("status.stopping"));
+            UpdateBacklogLabel();
 
             try
             {
@@ -673,8 +691,14 @@ namespace WinRealtimeWhisper
             }
             catch (Exception ex)
             {
-                _lblStatus.Text = Loc.T("status.stopFailed", ex.Message);
+                SetStatus(Loc.T("status.stopFailed", ex.Message));
             }
+            finally
+            {
+                _stopping = false;
+            }
+
+            UpdateBacklogLabel();
 
             if (_session != null)
             {
@@ -687,13 +711,13 @@ namespace WinRealtimeWhisper
 
             if (string.IsNullOrEmpty(_errorText))
             {
-                _lblStatus.Text = _session != null
+                SetStatus(_session != null
                     ? Loc.T("status.stoppedWithFile", Path.GetFileName(_sessionFilePath))
-                    : Loc.T("status.stopped");
+                    : Loc.T("status.stopped"));
             }
             else
             {
-                _lblStatus.Text = Loc.T("status.stoppedWithErrors");
+                SetStatus(Loc.T("status.stoppedWithErrors"));
             }
 
             UpdateButtons();
@@ -947,7 +971,7 @@ namespace WinRealtimeWhisper
                     return;      // 停止後に届いた遅延イベントは無視する
                 }
 
-                _lblStatus.Text = e.Text;
+                SetStatus(e.Text);
             }));
         }
 
@@ -988,7 +1012,7 @@ namespace WinRealtimeWhisper
             {
                 // 開始に失敗した場合もここに来る。_starting を戻さないとボタンが固まる。
                 _starting = false;
-                _lblStatus.Text = Loc.T("status.errorWithLog", e.Message);
+                SetStatus(Loc.T("status.errorWithLog", e.Message));
                 UpdateButtons();
             }));
         }
@@ -1006,6 +1030,8 @@ namespace WinRealtimeWhisper
             {
                 _lblTimer.ForeColor = Color.DimGray;
             }
+
+            UpdateBacklogLabel();
 
             // Whisper は途中経過を出さないので、新しく確定した行があったかどうかで再描画する。
             // 暫定テキストの変化だけを見ていると、確定行が画面に出ない。
@@ -1039,6 +1065,41 @@ namespace WinRealtimeWhisper
             }
         }
 
+        /// <summary>
+        /// ยัง確定していない音声の量を表示する。
+        /// 推論が追いついているか（録音中）と、停止にどれだけかかるか（停止中）の両方の目安になる。
+        /// </summary>
+        private void UpdateBacklogLabel()
+        {
+            if (_lblBacklog == null)
+            {
+                return;
+            }
+
+            bool busy = _starting || _engine.IsRecording || _stopping;
+            double backlog = _engine.BacklogSeconds;
+            int queue = _engine.PendingChunks;
+
+            // 録音中に残りが無いのは普通なので、何も出さない。
+            if (!busy || (backlog < 0.5 && queue == 0))
+            {
+                _lblBacklog.Visible = false;
+                return;
+            }
+
+            _lblBacklog.Visible = true;
+            _lblBacklog.Text = Loc.T("toolbar.backlog", queue, backlog);
+
+            // 追いつけていないときは目立たせる。
+            int warning = _engine.DroppedChunks > 0 ? 2 : (backlog >= 10 ? 1 : 0);
+            switch (warning)
+            {
+                case 2: _lblBacklog.ForeColor = Color.Firebrick; break;
+                case 1: _lblBacklog.ForeColor = Color.DarkOrange; break;
+                default: _lblBacklog.ForeColor = Color.DimGray; break;
+            }
+        }
+
         private void SaveSessionFile(bool force)
         {
             if (_session == null || string.IsNullOrEmpty(_sessionFilePath))
@@ -1068,7 +1129,7 @@ namespace WinRealtimeWhisper
             }
             catch (Exception ex)
             {
-                _lblStatus.Text = Loc.T("status.textSaveFailed", ex.Message);
+                SetStatus(Loc.T("status.textSaveFailed", ex.Message));
             }
         }
 

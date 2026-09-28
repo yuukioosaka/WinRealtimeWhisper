@@ -148,8 +148,8 @@ namespace WinRealtimeWhisper
             new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // メイン画面
-            { "app.title", "WinRealtimeWhisper - リアルタイム文字起こし" },
-            { "app.title.withState", "WinRealtimeWhisper - リアルタイム文字起こし  [{0} / {1}]" },
+            { "app.title", "WinRealtimeWhisper" },
+            { "app.title.status", "WinRealtimeWhisper - {0}" },
             { "menu.file", "ファイル(&F)" },
             { "menu.file.start", "録音開始(&R)" },
             { "menu.file.stop", "録音停止(&S)" },
@@ -170,6 +170,9 @@ namespace WinRealtimeWhisper
             { "toolbar.startTip", "録音を開始します (F5)" },
             { "toolbar.stopTip", "録音を停止して残りを確定します (F6)" },
             { "toolbar.timerTip", "録音の経過時間" },
+            { "toolbar.backlog", "未確定 {0} 件 {1:F1}s" },
+            { "toolbar.backlogTip",
+              "まだ確定していない音声の量です（左が推論待ちの区間数、右が時間）。停止するとこれを全部処理してから終わるため、多いほど停止に時間がかかります。" },
             { "toolbar.level", "入力レベル" },
 
             { "status.idle", "待機中" },
@@ -309,6 +312,7 @@ namespace WinRealtimeWhisper
             { "cli.recordingStarted", "録音を開始しました" },
             { "cli.recordingStartedWav", "録音を開始しました  WAV: {0}" },
             { "cli.pressCtrlC", "停止するには Ctrl+C を押してください。" },
+            { "cli.backlog", "未確定 {0} 件 / {1:F1} 秒" },
             { "cli.interrupting", "中断します..." },
             { "cli.stopFailed", "停止処理でエラー: {0}" },
             { "cli.stopFailedShort", "停止処理に失敗しました" },
@@ -329,8 +333,8 @@ namespace WinRealtimeWhisper
             new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // Main window
-            { "app.title", "WinRealtimeWhisper - Real-time transcription" },
-            { "app.title.withState", "WinRealtimeWhisper - Real-time transcription  [{0} / {1}]" },
+            { "app.title", "WinRealtimeWhisper" },
+            { "app.title.status", "WinRealtimeWhisper - {0}" },
             { "menu.file", "&File" },
             { "menu.file.start", "&Start recording" },
             { "menu.file.stop", "&Stop recording" },
@@ -351,6 +355,9 @@ namespace WinRealtimeWhisper
             { "toolbar.startTip", "Start recording (F5)" },
             { "toolbar.stopTip", "Stop recording and flush the rest (F6)" },
             { "toolbar.timerTip", "Elapsed recording time" },
+            { "toolbar.backlog", "pending {0} / {1:F1}s" },
+            { "toolbar.backlogTip",
+              "Audio that has not been finalized yet (segments waiting for inference, and seconds). Stopping transcribes all of it first, so more pending means a longer stop." },
             { "toolbar.level", "Input level" },
 
             { "status.idle", "Idle" },
@@ -490,6 +497,7 @@ namespace WinRealtimeWhisper
             { "cli.recordingStarted", "Recording started" },
             { "cli.recordingStartedWav", "Recording started  WAV: {0}" },
             { "cli.pressCtrlC", "Press Ctrl+C to stop." },
+            { "cli.backlog", "pending {0} / {1:F1}s" },
             { "cli.interrupting", "Interrupting..." },
             { "cli.stopFailed", "Error while stopping: {0}" },
             { "cli.stopFailedShort", "Stopping failed" },
