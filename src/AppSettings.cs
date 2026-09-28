@@ -113,6 +113,12 @@ namespace WinRealtimeWhisper
         /// <summary>VTT に書き出す heartbeat の間隔（秒）。</summary>
         public double VttHeartbeatSeconds { get; set; }
 
+        /// <summary>OpenAI Realtime 互換の WebSocket サーバーを立てるか。</summary>
+        public bool RealtimeServerEnabled { get; set; }
+
+        /// <summary>WebSocket サーバーの待ち受けポート（127.0.0.1）。</summary>
+        public int RealtimeServerPort { get; set; }
+
         /// <summary>前回終了時のウィンドウ左上 X。-1 なら未保存。</summary>
         public int WindowX { get; set; }
 
@@ -173,6 +179,8 @@ namespace WinRealtimeWhisper
             VttEnabled = true;
             VttDirectory = string.Empty;
             VttHeartbeatSeconds = 5.0;
+            RealtimeServerEnabled = false;
+            RealtimeServerPort = DefaultRealtimePort;
             WindowX = -1;
             WindowY = -1;
             WindowWidth = 0;
@@ -275,7 +283,18 @@ namespace WinRealtimeWhisper
         public static string ModelDirectoryOverride { get; set; }
 
         /// <summary>
-        /// 設定ファイルのパス。環境変数 WINREALTIMEWHISPER_SETTINGS で差し替えられる
+        /// <summary>WebSocket サーバーの既定ポート。</summary>
+        public const int DefaultRealtimePort = 8765;
+
+        /// <summary>実際に使うポート。範囲外なら既定値。</summary>
+        public int ResolveRealtimePort()
+        {
+            return RealtimeServerPort >= 1 && RealtimeServerPort <= 65535
+                ? RealtimeServerPort
+                : DefaultRealtimePort;
+        }
+
+        /// <summary>設定ファイルのパス。環境変数 WINREALTIMEWHISPER_SETTINGS で差し替えられる
         /// （テストが実設定を壊さないようにするため）。
         /// </summary>
         public static string FilePath
@@ -351,6 +370,23 @@ namespace WinRealtimeWhisper
                     ReadInt(values, "WindowY", y => s.WindowY = y);
                     ReadInt(values, "WindowWidth", w => s.WindowWidth = w);
                     ReadInt(values, "WindowHeight", h => s.WindowHeight = h);
+
+                    if (values.TryGetValue("RealtimeServerEnabled", out v))
+                    {
+                        bool realtime;
+                        if (bool.TryParse(v, out realtime))
+                        {
+                            s.RealtimeServerEnabled = realtime;
+                        }
+                    }
+
+                    ReadInt(values, "RealtimeServerPort", p =>
+                    {
+                        if (p >= 1 && p <= 65535)
+                        {
+                            s.RealtimeServerPort = p;
+                        }
+                    });
 
                     if (values.TryGetValue("WindowMaximized", out v))
                     {
@@ -453,6 +489,8 @@ namespace WinRealtimeWhisper
             sb.AppendLine("  \"WindowWidth\": " + WindowWidth + ",");
             sb.AppendLine("  \"WindowHeight\": " + WindowHeight + ",");
             sb.AppendLine("  \"WindowMaximized\": " + (WindowMaximized ? "true" : "false") + ",");
+            sb.AppendLine("  \"RealtimeServerEnabled\": " + (RealtimeServerEnabled ? "true" : "false") + ",");
+            sb.AppendLine("  \"RealtimeServerPort\": " + ResolveRealtimePort() + ",");
             sb.AppendLine("  \"LatencyProfile\": " + LatencyProfile + ",");
             sb.AppendLine("  \"MaxChunkSeconds\": " + MaxChunkSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");

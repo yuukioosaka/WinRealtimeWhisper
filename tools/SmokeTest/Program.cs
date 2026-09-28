@@ -59,6 +59,10 @@ namespace WinRealtimeWhisperSmokeTest
                 {
                     exit = WindowSmoke.Run();
                 }
+                else if (args.Length > 1 && args[1] == "realtime")
+                {
+                    exit = RealtimeSmoke.Run();
+                }
                 else
                 {
                     TestRecognizer(modelPath);

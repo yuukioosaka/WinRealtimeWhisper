@@ -35,6 +35,8 @@ namespace WinRealtimeWhisper
         private TextBox _txtLogDir;
         private TextBox _txtVttDir;
         private CheckBox _chkVtt;
+        private CheckBox _chkRealtime;
+        private NumericUpDown _numRealtimePort;
         private Button _btnHistoryDir;
         private Button _btnWavDir;
         private Button _btnModelDir;
@@ -423,12 +425,12 @@ namespace WinRealtimeWhisper
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 3,
-                RowCount = 6
+                RowCount = 9
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 9; i++)
             {
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             }
@@ -458,6 +460,47 @@ namespace WinRealtimeWhisper
             };
             layout.Controls.Add(_chkVtt, 0, 5);
             layout.SetColumnSpan(_chkVtt, 3);
+
+            var vttNote = new Label
+            {
+                Text = Loc.T("settings.storage.vttNote"),
+                AutoSize = true,
+                MaximumSize = new Size(500, 0),
+                ForeColor = Color.DimGray,
+                Margin = new Padding(3, 0, 3, 10)
+            };
+            layout.Controls.Add(vttNote, 0, 6);
+            layout.SetColumnSpan(vttNote, 3);
+
+            _chkRealtime = new CheckBox
+            {
+                Text = Loc.T("settings.realtime.enabled"),
+                AutoSize = true,
+                Margin = new Padding(3, 6, 3, 2)
+            };
+            _chkRealtime.CheckedChanged += (s, e) => UpdateRealtimeState();
+            layout.Controls.Add(_chkRealtime, 0, 7);
+            layout.SetColumnSpan(_chkRealtime, 3);
+
+            var portHost = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(3, 2, 3, 2)
+            };
+            portHost.Controls.Add(NewLabel(Loc.T("settings.realtime.port")));
+            _numRealtimePort = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 65535,
+                Width = 80,
+                Value = AppSettings.DefaultRealtimePort
+            };
+            portHost.Controls.Add(_numRealtimePort);
+            layout.Controls.Add(portHost, 0, 8);
+            layout.SetColumnSpan(portHost, 3);
 
             page.Controls.Add(layout);
             return page;
@@ -601,6 +644,13 @@ namespace WinRealtimeWhisper
                 : _settings.VttDirectory;
             _chkVtt.Checked = _settings.VttEnabled;
 
+            _chkRealtime.Checked = _settings.RealtimeServerEnabled;
+            int port = _settings.ResolveRealtimePort();
+            _numRealtimePort.Value = port >= _numRealtimePort.Minimum && port <= _numRealtimePort.Maximum
+                ? port
+                : AppSettings.DefaultRealtimePort;
+            UpdateRealtimeState();
+
             UpdateModelState();
             UpdateEnabled();
         }
@@ -731,6 +781,15 @@ namespace WinRealtimeWhisper
             }
 
             _cmbCycle.SelectedIndex = best;
+        }
+
+        /// <summary>WebSocket サーバーを有効にしたときだけ、ポートを編集できるようにする。</summary>
+        private void UpdateRealtimeState()
+        {
+            if (_numRealtimePort != null)
+            {
+                _numRealtimePort.Enabled = _chkRealtime.Checked && !_busy;
+            }
         }
 
         private void UpdateModelState()
@@ -892,6 +951,8 @@ namespace WinRealtimeWhisper
             _settings.LogDirectory = KeepIfNotDefault(_txtLogDir.Text, DefaultLogDirectory());
             _settings.VttDirectory = KeepIfNotDefault(_txtVttDir.Text, DefaultVttDirectory());
             _settings.VttEnabled = _chkVtt.Checked;
+            _settings.RealtimeServerEnabled = _chkRealtime.Checked;
+            _settings.RealtimeServerPort = (int)_numRealtimePort.Value;
         }
 
         /// <summary>入力が既定パスと同じなら空（未設定）を返す。</summary>

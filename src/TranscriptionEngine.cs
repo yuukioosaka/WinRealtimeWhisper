@@ -40,6 +40,8 @@ namespace WinRealtimeWhisper
         private VttTranscriptWriter _vtt;
         private System.Threading.Timer _vttHeartbeat;
         private TimeSpan _vttHeartbeatInterval = TimeSpan.FromSeconds(5);
+        private RealtimeWebSocketHub _realtime;
+        private long _finalSequence;
         private DateTime _startedAt;
 
         /// <summary>話者ラベル。VTT 出力に使う。</summary>
@@ -389,6 +391,7 @@ namespace WinRealtimeWhisper
 
                 _startedAt = DateTime.Now;
                 StartVtt(settings, inputFile != null);
+                StartRealtime(settings);
 
                 _audioBytes = 0;
                 _noiseBytes = 0;
@@ -509,6 +512,58 @@ namespace WinRealtimeWhisper
             {
                 DiagLog.WriteException("[vtt] could not start", ex);
                 _vtt = null;
+            }
+        }
+
+        /// <summary>
+        /// OpenAI Realtime 互換の WebSocket サーバーを立てる。
+        /// 失敗しても録音は続ける（ログに残して握りつぶす）。
+        /// </summary>
+        private void StartRealtime(AppSettings settings)
+        {
+            if (!settings.RealtimeServerEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                var hub = new RealtimeWebSocketHub(settings.ResolveRealtimePort());
+                hub.SetSession(
+                    _startedAt.ToString("yyyy-MM-dd_HHmm", System.Globalization.CultureInfo.InvariantCulture),
+                    Path.GetFileName(settings.ModelPath ?? string.Empty),
+                    string.IsNullOrEmpty(settings.WhisperLanguage) ? "ja" : settings.WhisperLanguage,
+                    _startedAt);
+                hub.Start();
+                _realtime = hub;
+                DiagLog.Write("[ws] listening on ws://127.0.0.1:" + hub.Port + "/v1/realtime");
+                RaiseStatus(Loc.T("status.realtimeListening", hub.Port));
+            }
+            catch (Exception ex)
+            {
+                DiagLog.WriteException("[ws] could not start", ex);
+                _realtime = null;
+                RaiseStatus(Loc.T("status.realtimeFailed", ex.Message));
+            }
+        }
+
+        /// <summary>接続中のクライアント数（情報バー表示用）。</summary>
+        public int RealtimeClientCount
+        {
+            get
+            {
+                var hub = _realtime;
+                return hub == null ? 0 : hub.ClientCount;
+            }
+        }
+
+        /// <summary>WebSocket サーバーが待ち受けているポート。無効なら 0。</summary>
+        public int RealtimePort
+        {
+            get
+            {
+                var hub = _realtime;
+                return hub == null ? 0 : hub.Port;
             }
         }
 
@@ -939,6 +994,15 @@ namespace WinRealtimeWhisper
             {
                 handler(this, new SpeechActivityEventArgs(speaking));
             }
+
+            var realtime = _realtime;
+            if (realtime != null)
+            {
+                TimeSpan offset = _startedAt == DateTime.MinValue
+                    ? TimeSpan.Zero
+                    : DateTime.Now - _startedAt;
+                realtime.Broadcast(RealtimeEvents.SpeechActivity(speaking, offset));
+            }
         }
 
         private void RaiseError(string message, Exception ex)
@@ -1015,6 +1079,17 @@ namespace WinRealtimeWhisper
             if (handler != null)
             {
                 handler(this, new FinalTextEventArgs(e.Text, e.Offset.Ticks, label, duration));
+            }
+
+            // WebSocket クライアントへも同じ確定テキストを流す。
+            // 話者ラベルが無い（片系統だけの）ときは speaker を付けない。
+            var realtime = _realtime;
+            if (realtime != null)
+            {
+                long sequence = Interlocked.Increment(ref _finalSequence);
+                string itemId = "item_" + sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                realtime.Broadcast(RealtimeEvents.TranscriptionCompleted(
+                    sequence, itemId, e.Text, label, e.Offset, duration));
             }
         }
 
@@ -1242,6 +1317,14 @@ namespace WinRealtimeWhisper
                 _vtt.Dispose();
                 _vtt = null;
             }
+
+            if (_realtime != null)
+            {
+                _realtime.Dispose();
+                _realtime = null;
+            }
+
+            Interlocked.Exchange(ref _finalSequence, 0);
         }
 
         private void OnRecordingStopped(object sender, StoppedEventArgs e)

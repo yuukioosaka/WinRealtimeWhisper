@@ -136,6 +136,34 @@ API キーなしにリアルタイム解析できます。形式の仕様は
 **設定 > 保存先** の「ライブ WebVTT 文字起こしを書き出す」と保存先フォルダ、
 またはコマンドラインの `--vtt-dir <フォルダ>` / `--no-vtt` で切り替えられます。
 
+## OpenAI Realtime 互換 WebSocket
+
+ファイルを監視する代わりに、外部プロセスが WebSocket で文字起こしを購読できます。
+イベントは OpenAI Realtime API の命名に合わせてあるので、既存のクライアント資産や
+考え方をそのまま流用できます。**一方向・テキストのみ**で、音声のやり取りはしません。
+
+```
+ws://127.0.0.1:8765/v1/realtime
+```
+
+```json
+{"type":"conversation.item.input_audio_transcription.completed",
+ "event_id":"evt_3_198f3c2a1b0","item_id":"item_1",
+ "transcript":"今日は天気が良いですね。","speaker":"Remote",
+ "audio_start_ms":12500,"audio_end_ms":14200,"sequence":1}
+```
+
+- `127.0.0.1` にのみ、録音中だけ待ち受けます。
+- .NET の `HttpListener` / `System.Net.WebSockets` で実装しており、追加依存はありません。
+- `sequence` は WebVTT のキュー番号と一致するので、両方の出力を対応付けられます。
+- 送るのは確定区間だけです。Whisper の途中経過は区間の全文の書き直しで差分ではないため、
+  流すと API の意味とずれます。
+
+**設定 > 保存先** の「OpenAI Realtime 互換の WebSocket サーバーを立てる」とポート、
+または `--ws` / `--ws-port <ポート>` で有効にできます。仕様は
+[docs/realtime-websocket.ja.md](docs/realtime-websocket.ja.md)（英語:
+[docs/realtime-websocket.md](docs/realtime-websocket.md)）にあります。
+
 ## コマンドライン
 
 引数を付けずに起動すると、これまでどおり GUI が開きます。
@@ -160,6 +188,8 @@ WinRealtimeWhisper.exe -i speech.wav
 | `--text <ファイル>` | テキストの保存先 |
 | `--vtt-dir <フォルダ>` | ライブ WebVTT 文字起こしの保存先 |
 | `--no-vtt` | ライブ WebVTT 文字起こしを書き出さない |
+| `--ws` | OpenAI Realtime 互換の WebSocket サーバーを立てる |
+| `--ws-port <ポート>` | WebSocket の待ち受けポート（既定 8765）。`--ws` も有効になります |
 | `-m`, `--model <ファイル名>` | 使う ggml モデル |
 | `--model-dir <フォルダ>` | モデルの置き場を差し替える |
 | `-l`, `--language <コード>` | 認識する言語（既定 `ja`） |

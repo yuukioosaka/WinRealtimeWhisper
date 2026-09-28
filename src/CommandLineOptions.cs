@@ -58,6 +58,12 @@ namespace WinRealtimeWhisper
         /// <summary>ライブ文字起こし(VTT)を書かない。</summary>
         public bool VttDisabled { get; private set; }
 
+        /// <summary>OpenAI Realtime 互換の WebSocket サーバーを立てる。</summary>
+        public bool RealtimeServer { get; private set; }
+
+        /// <summary>WebSocket サーバーのポート。0 なら未指定（設定に従う）。</summary>
+        public int RealtimePort { get; private set; }
+
         /// <summary>何も指定されなければ GUI を起動する。</summary>
         public bool RunsHeadless
         {
@@ -200,6 +206,19 @@ namespace WinRealtimeWhisper
                         o.VttDisabled = true;
                         break;
 
+                    case "ws":
+                    case "realtime":
+                    case "websocket":
+                        o.RealtimeServer = true;
+                        break;
+
+                    case "ws-port":
+                    case "realtime-port":
+                    case "websocket-port":
+                        o.RealtimeServer = true;
+                        o.RealtimePort = ParsePort(Value(args, ref i, inline, name));
+                        break;
+
                     default:
                         throw new ArgumentException(Loc.T("cli.unknownOption", arg));
                 }
@@ -254,6 +273,11 @@ namespace WinRealtimeWhisper
             {
                 throw new ArgumentException(Loc.T("cli.silenceRange"));
             }
+
+            if (RealtimePort < 0 || RealtimePort > 65535)
+            {
+                throw new ArgumentException(Loc.T("cli.portRange"));
+            }
         }
 
         /// <summary>settings.json を読んだ内容に、コマンドラインの指定を重ねる。</summary>
@@ -304,6 +328,16 @@ namespace WinRealtimeWhisper
             if (!string.IsNullOrEmpty(VttDirectory))
             {
                 settings.VttDirectory = Path.GetFullPath(VttDirectory);
+            }
+
+            if (RealtimeServer)
+            {
+                settings.RealtimeServerEnabled = true;
+            }
+
+            if (RealtimePort > 0)
+            {
+                settings.RealtimeServerPort = RealtimePort;
             }
 
             // ファイル入力にループバックは無いので、録音デバイスを開かない種類に寄せる
@@ -363,6 +397,10 @@ namespace WinRealtimeWhisper
             w.WriteLine("      --vtt-dir <フォルダ> ライブ文字起こし(WebVTT)の保存先。");
             w.WriteLine("                          外部アプリがこのファイルを tail してリアルタイム解析できます。");
             w.WriteLine("      --no-vtt             ライブ文字起こし(WebVTT)を書かない。");
+            w.WriteLine("      --ws                 OpenAI Realtime 互換の WebSocket サーバーを立てる。");
+            w.WriteLine("      --ws-port <ポート>   待ち受けポート (既定 8765)。--ws も同時に有効になります。");
+            w.WriteLine("      --ws                 OpenAI Realtime 互換の WebSocket サーバーを立てる。");
+            w.WriteLine("      --ws-port <ポート>   待ち受けポート (既定 8765)。--ws も同時に有効になります。");
             w.WriteLine();
             w.WriteLine("認識:");
             w.WriteLine("  -m, --model <名前|パス> ggml モデル。名前だけなら既定のフォルダから探します。");
@@ -410,6 +448,8 @@ namespace WinRealtimeWhisper
             w.WriteLine("      --vtt-dir <folder>  Where to write the live WebVTT transcript.");
             w.WriteLine("                          External apps can tail this file for real-time analysis.");
             w.WriteLine("      --no-vtt            Do not write the live WebVTT transcript.");
+            w.WriteLine("      --ws                 Run an OpenAI Realtime compatible WebSocket server.");
+            w.WriteLine("      --ws-port <port>     Listening port (default 8765). Also enables --ws.");
             w.WriteLine();
             w.WriteLine("Recognition:");
             w.WriteLine("  -m, --model <name|path> ggml model. A bare name is looked up in the default folder.");
@@ -519,6 +559,18 @@ namespace WinRealtimeWhisper
             }
 
             return args[++i];
+        }
+
+        private static int ParsePort(string text)
+        {
+            int port;
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out port)
+                || port < 1 || port > 65535)
+            {
+                throw new ArgumentException(Loc.T("cli.portRange"));
+            }
+
+            return port;
         }
 
         private static double ParseSeconds(string text)

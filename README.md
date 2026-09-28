@@ -143,6 +143,35 @@ changes, drain the old file before switching.
 Toggle it in **Settings > Storage** ("Write the live WebVTT transcript", plus the
 folder), or from the command line with `--vtt-dir <folder>` / `--no-vtt`.
 
+## OpenAI Realtime compatible WebSocket
+
+Instead of watching a file, an external process can subscribe to the transcript
+over a WebSocket. Events follow the naming of the OpenAI Realtime API, so
+existing client code and mental models carry over. The link is **one-way and
+text-only** — audio is never exchanged.
+
+```
+ws://127.0.0.1:8765/v1/realtime
+```
+
+```json
+{"type":"conversation.item.input_audio_transcription.completed",
+ "event_id":"evt_3_198f3c2a1b0","item_id":"item_1",
+ "transcript":"今日は天気が良いですね。","speaker":"Remote",
+ "audio_start_ms":12500,"audio_end_ms":14200,"sequence":1}
+```
+
+- Bound to `127.0.0.1` only, and only while recording.
+- Built on the .NET `HttpListener` / `System.Net.WebSockets` stack — no extra dependency.
+- `sequence` matches the cue id in the WebVTT file, so both outputs correlate.
+- Only finalized segments are sent. Whisper's in-progress text is a rewrite of the
+  whole segment rather than a delta, so streaming it would misrepresent the API.
+
+Enable it in **Settings > Storage** ("Run an OpenAI Realtime compatible WebSocket
+server" and the port), or with `--ws` / `--ws-port <port>`. The specification is
+in [docs/realtime-websocket.md](docs/realtime-websocket.md) (Japanese:
+[docs/realtime-websocket.ja.md](docs/realtime-websocket.ja.md)).
+
 ## Command line
 
 Launching with no arguments opens the GUI as before. Specifying anything related
@@ -167,6 +196,8 @@ WinRealtimeWhisper.exe -i speech.wav
 | `--text <file>` | Where to save the transcript |
 | `--vtt-dir <folder>` | Where to write the live WebVTT transcript |
 | `--no-vtt` | Do not write the live WebVTT transcript |
+| `--ws` | Run an OpenAI Realtime compatible WebSocket server |
+| `--ws-port <port>` | WebSocket listening port (default 8765); also enables `--ws` |
 | `-m`, `--model <filename>` | ggml model to use |
 | `--model-dir <folder>` | Override the model folder |
 | `-l`, `--language <code>` | Recognition language (default `ja`) |

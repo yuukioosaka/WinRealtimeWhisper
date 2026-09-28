@@ -42,6 +42,7 @@ namespace WinRealtimeWhisper
         private ToolStripButton _btnStop;
         private ToolStripLabel _lblTimer;
         private ToolStripLabel _lblBacklog;
+        private ToolStripLabel _lblClients;
         private TextBox _txtLive;
         private Label _lblPending;
         private ProgressBar _levelBar;
@@ -214,13 +215,24 @@ namespace WinRealtimeWhisper
                 Style = ProgressBarStyle.Continuous
             };
 
-            // 左から「録音/再生 | 時間 | インジケーター | 未確定」の順に並べる。
+            // WebSocket サーバーに接続中のクライアント数。無効なら出さない。
+            _lblClients = new ToolStripLabel()
+            {
+                Font = new Font("Consolas", 9f),
+                ForeColor = Color.SteelBlue,
+                Padding = new Padding(8, 0, 8, 0),
+                ToolTipText = Loc.T("toolbar.clientsTip"),
+                Visible = false
+            };
+
+            // 左から「録音/再生 | 時間 | インジケーター | 未確定 | WS」の順に並べる。
             // 状態メッセージはツールバーではなくタイトルバーに出す。
             _toolbar.Items.Add(_btnStart);
             _toolbar.Items.Add(_btnStop);
             _toolbar.Items.Add(_lblTimer);
             _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(6, 0, 6, 0) });
             _toolbar.Items.Add(_lblBacklog);
+            _toolbar.Items.Add(_lblClients);
 
             // 本文は読み取り専用の TextBox にする（選択・コピーを可能にするため）。
             // 枠は上辺が白く光って見えるので BorderStyle は None にし、親パネル側で描く。
@@ -1110,6 +1122,8 @@ namespace WinRealtimeWhisper
                 return;
             }
 
+            UpdateClientIndicator();
+
             bool busy = _starting || _engine.IsRecording || _stopping;
             double backlog = _engine.BacklogSeconds;
             int queue = _engine.PendingChunks;
@@ -1132,6 +1146,24 @@ namespace WinRealtimeWhisper
                 case 1: _lblBacklog.ForeColor = Color.DarkOrange; break;
                 default: _lblBacklog.ForeColor = Color.DimGray; break;
             }
+        }
+
+        /// <summary>WebSocket サーバーに何台つながっているかを情報バーに出す。無効なら隠す。</summary>
+        private void UpdateClientIndicator()
+        {
+            if (_lblClients == null)
+            {
+                return;
+            }
+
+            if (_engine.RealtimePort <= 0)
+            {
+                _lblClients.Visible = false;
+                return;
+            }
+
+            _lblClients.Visible = true;
+            _lblClients.Text = Loc.T("toolbar.clients", _engine.RealtimeClientCount, _engine.RealtimePort);
         }
 
         private void SaveSessionFile(bool force)
