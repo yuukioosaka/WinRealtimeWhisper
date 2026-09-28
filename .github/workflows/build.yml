@@ -54,14 +54,24 @@ jobs:
           }
           Write-Host "--- win-x64 natives ---"
           Get-ChildItem "bin/WinRealtimeWhisper/Release/net48/runtimes/win-x64" | Format-Table Name, Length
+          Write-Host "--- vulkan natives ---"
+          Get-ChildItem "bin/WinRealtimeWhisper/Release/net48/runtimes/vulkan/win-x64" | Format-Table Name, Length
 
-          # win-x64 以外のネイティブが混ざっていないことを確認する
+          # win-x64 (CPU) と vulkan/win-x64 (GPU) 以外のネイティブが混ざっていないことを確認する
+          $allowed = @('win-x64', 'vulkan')
           $foreign = Get-ChildItem "bin/WinRealtimeWhisper/Release/net48/runtimes" -Directory |
-            Where-Object { $_.Name -ne 'win-x64' }
+            Where-Object { $allowed -notcontains $_.Name }
           if ($foreign) {
-            throw "Non win-x64 natives were shipped: $($foreign.Name -join ', ')"
+            throw "Unexpected native runtimes were shipped: $($foreign.Name -join ', ')"
           }
-          Write-Host "OK: only win-x64 natives are shipped"
+          Write-Host "OK: only win-x64 and vulkan natives are shipped"
+
+          # Vulkan 側のネイティブは win-x64 配下に置かれる仕様
+
+          if (-not (Test-Path "bin/WinRealtimeWhisper/Release/net48/runtimes/vulkan/win-x64/ggml-vulkan-whisper.dll")) {
+            throw "ggml-vulkan-whisper.dll not found"
+          }
+          Write-Host "OK: vulkan native is present"
 
       - name: CLI smoke test
         shell: pwsh
