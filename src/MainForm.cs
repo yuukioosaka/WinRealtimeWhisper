@@ -44,7 +44,6 @@ namespace WinRealtimeWhisper
         private TextBox _txtLive;
         private Label _lblPending;
         private ProgressBar _levelBar;
-        private ToolStripLabel _lblActivity;
 
         /// <summary>本文の編集欄。スモークテストが表示内容を確認するために公開している。</summary>
         internal TextBox EditorBox
@@ -171,11 +170,8 @@ namespace WinRealtimeWhisper
             {
                 Image = AppIcons.Record(),
                 ImageScaling = ToolStripItemImageScaling.SizeToFit,
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                ToolTipText = Loc.T("toolbar.startTip"),
-                AutoSize = false,
-                Width = 118
+                DisplayStyle = ToolStripItemDisplayStyle.Image,
+                ToolTipText = Loc.T("toolbar.startTip")
             };
             _btnStart.Click += async (s, e) => await StartRecordingAsync();
 
@@ -183,11 +179,8 @@ namespace WinRealtimeWhisper
             {
                 Image = AppIcons.Stop(),
                 ImageScaling = ToolStripItemImageScaling.SizeToFit,
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
+                DisplayStyle = ToolStripItemDisplayStyle.Image,
                 ToolTipText = Loc.T("toolbar.stopTip"),
-                AutoSize = false,
-                Width = 118,
                 Enabled = false
             };
             _btnStop.Click += async (s, e) => await StopRecordingAsync();
@@ -206,13 +199,7 @@ namespace WinRealtimeWhisper
                 ToolTipText = Loc.T("toolbar.timerTip")
             };
 
-            _lblActivity = new ToolStripLabel(Loc.T("toolbar.level"))
-            {
-                ForeColor = Color.DimGray,
-                Padding = new Padding(2, 0, 6, 0)
-            };
-
-            _levelBar = new ProgressBar
+            _levelBar = new ProgressBar()
             {
                 Minimum = 0,
                 Maximum = 100,
@@ -229,8 +216,7 @@ namespace WinRealtimeWhisper
             _toolbar.Items.Add(_lblStatus);
             _toolbar.Items.Add(new ToolStripSeparator());
             _toolbar.Items.Add(_lblTimer);
-            _toolbar.Items.Add(_lblActivity);
-            _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(0, 0, 0, 0) });
+            _toolbar.Items.Add(new ToolStripControlHost(_levelBar) { Margin = new Padding(6, 0, 0, 0) });
 
             // 本文は読み取り専用の TextBox にする（選択・コピーを可能にするため）。
             // 枠は上辺が白く光って見えるので BorderStyle は None にし、親パネル側で描く。
