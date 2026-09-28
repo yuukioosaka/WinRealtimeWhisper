@@ -87,6 +87,7 @@ GPU の方が遅い環境ではオフにしてください（次回の録音開�
 | --- | --- |
 | テキスト（履歴） | `ドキュメント\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt` |
 | WAV | `ドキュメント\WinRealtimeWhisper\wav\rec_yyyyMMdd_HHmmss.wav`（`-i` でファイル入力したときは再保存しません） |
+| ライブ文字起こし（VTT） | `%LOCALAPPDATA%\WinRealtimeWhisper\transcripts\` |
 | モデル | `%LOCALAPPDATA%\WinRealtimeWhisper\models\` |
 | ログ | `%LOCALAPPDATA%\WinRealtimeWhisper\logs\` |
 
@@ -97,6 +98,39 @@ GPU の方が遅い環境ではオフにしてください（次回の録音開�
 - WAV は 44.1kHz / 16bit / ステレオに正規化して保存します（Whisper へは 16kHz / モノラルで渡します）。
 - 履歴は **ツール > 過去の履歴** で見られます。一覧のダブルクリック、
   または「エディタで開く」でテキストファイルを開きます。
+
+## ライブ文字起こし（WebVTT）
+
+録音中、確定した区間は **WebVTT** ファイルへ追記されます。チェックリスト判定や
+感情分析、リアルタイム助言などの別プロセスが、このファイルを tail するだけで
+API キーなしにリアルタイム解析できます。形式の仕様は
+[docs/transcript-vtt.ja.md](docs/transcript-vtt.ja.md)（英語: [docs/transcript-vtt.md](docs/transcript-vtt.md)）にあります。
+
+```
+%LOCALAPPDATA%\WinRealtimeWhisper\transcripts\
+    2026-09-28_2149.live.vtt   <- 書き込み中。これを tail する
+    2026-09-28_2149.vtt        <- 停止時に確定
+    current.txt                <- 現在の .live.vtt のファイル名
+```
+
+主な特徴:
+
+- **標準 WebVTT。** キューはセッション相対の時刻を持ち、メタ情報は `NOTE` に
+  置くため、通常の字幕ツールでも確定後のファイルをそのまま読めます。
+- **音源分離による話者ラベル。** ループバック（スピーカーから聞こえる音）は
+  `<v Remote>`、マイクは `<v You>` になります。2 系統は混ぜずに別々に認識するため、
+  ラベルは正確です。
+- **tail しても安全。** 各ブロックは空行で終端されるまで一度に書き込まれるので、
+  読み手が書きかけのキューを見ることはありません。
+- **生存確認。** 発話が無くても 5 秒ごとに `NOTE heartbeat` を書き、
+  正常な停止は `NOTE session_end` で示します。
+
+読み手側の最小実装: `current.txt` を読み、前回の位置までシークし、空行で終わる
+ブロックだけを処理し、最後のキュー id を覚えておきます。ポインタの指すファイルが
+変わったら、古いファイルを最後まで読み切ってから切り替えます。
+
+**設定 > 保存先** の「ライブ WebVTT 文字起こしを書き出す」と保存先フォルダ、
+またはコマンドラインの `--vtt-dir <フォルダ>` / `--no-vtt` で切り替えられます。
 
 ## コマンドライン
 
@@ -120,6 +154,8 @@ WinRealtimeWhisper.exe -i speech.wav
 | `-s`, `--source <both\|speakers\|mic>` | 取り込む音源 |
 | `-o`, `--output <ファイル>` | WAV の保存先 |
 | `--text <ファイル>` | テキストの保存先 |
+| `--vtt-dir <フォルダ>` | ライブ WebVTT 文字起こしの保存先 |
+| `--no-vtt` | ライブ WebVTT 文字起こしを書き出さない |
 | `-m`, `--model <ファイル名>` | 使う ggml モデル |
 | `--model-dir <フォルダ>` | モデルの置き場を差し替える |
 | `-l`, `--language <コード>` | 認識する言語（既定 `ja`） |

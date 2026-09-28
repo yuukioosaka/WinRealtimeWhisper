@@ -91,6 +91,7 @@ arrives, a segment is cut at the configured segment cycle (default 30 s).
 | --- | --- |
 | Text (history) | `Documents\WinRealtimeWhisper\history\session_yyyyMMdd_HHmmss.txt` |
 | WAV | `Documents\WinRealtimeWhisper\wav\rec_yyyyMMdd_HHmmss.wav` (not rewritten when input is a file via `-i`) |
+| Live transcript (VTT) | `%LOCALAPPDATA%\WinRealtimeWhisper\transcripts\` |
 | Models | `%LOCALAPPDATA%\WinRealtimeWhisper\models\` |
 | Logs | `%LOCALAPPDATA%\WinRealtimeWhisper\logs\` |
 
@@ -103,6 +104,39 @@ restores the default.
 - WAV is normalized to 44.1 kHz / 16-bit / stereo (Whisper receives 16 kHz / mono).
 - History is available from **Tools > History**. Double-click an entry, or use
   **Open in editor**, to open the text file.
+
+## Live transcript (WebVTT)
+
+While recording, finalized segments are appended to a **WebVTT** file. Any
+process can tail it to build checklists, sentiment analysis or live advice
+without an API key. The format is specified in
+[docs/transcript-vtt.md](docs/transcript-vtt.md) (Japanese: [docs/transcript-vtt.ja.md](docs/transcript-vtt.ja.md)).
+
+```
+%LOCALAPPDATA%\WinRealtimeWhisper\transcripts\
+    2026-09-28_2149.live.vtt   <- being written; tail this
+    2026-09-28_2149.vtt        <- finalized on stop
+    current.txt                <- name of the active .live.vtt
+```
+
+Key properties:
+
+- **Standard WebVTT.** Cues carry session-relative timestamps; metadata lives in
+  `NOTE` blocks, so any subtitle tool can read the finished file.
+- **Speaker labels from separated sources.** Loopback capture (what you hear) is
+  tagged `<v Remote>`, the microphone is tagged `<v You>`. The two sources are
+  recognized separately, not mixed, so the label is exact.
+- **Safe to tail.** Every block is written atomically and terminated by a blank
+  line, so a reader never sees a half-written cue.
+- **Liveness.** A `NOTE heartbeat` is written every 5 s even while nothing is
+  being said, and `NOTE session_end` marks a clean stop.
+
+A minimal consumer: read `current.txt`, seek to your last offset, process only
+blocks ending in a blank line, and remember the last cue id. When the pointer
+changes, drain the old file before switching.
+
+Toggle it in **Settings > Storage** ("Write the live WebVTT transcript", plus the
+folder), or from the command line with `--vtt-dir <folder>` / `--no-vtt`.
 
 ## Command line
 
@@ -126,6 +160,8 @@ WinRealtimeWhisper.exe -i speech.wav
 | `-s`, `--source <both\|speakers\|mic>` | Audio source to capture |
 | `-o`, `--output <file>` | Where to save the WAV |
 | `--text <file>` | Where to save the transcript |
+| `--vtt-dir <folder>` | Where to write the live WebVTT transcript |
+| `--no-vtt` | Do not write the live WebVTT transcript |
 | `-m`, `--model <filename>` | ggml model to use |
 | `--model-dir <folder>` | Override the model folder |
 | `-l`, `--language <code>` | Recognition language (default `ja`) |
