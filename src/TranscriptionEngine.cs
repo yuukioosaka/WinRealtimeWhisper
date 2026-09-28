@@ -921,7 +921,10 @@ namespace WinRealtimeWhisper
                 provider = new WdlResamplingSampleProvider(provider, WavSampleRate);
             }
 
-            var toBytes = provider.ToWaveProvider();
+            // _wavWriter は 16bit PCM で開いている。RawSampleProvider は float なので、
+            // ToWaveProvider16 で 16bit に落とさないと float の生バイトが
+            // そのまま PCM として書かれ、ノイズになる。
+            var toBytes = provider.ToWaveProvider16();
 
             int bytes = 0;
             var buffer = new byte[32768];

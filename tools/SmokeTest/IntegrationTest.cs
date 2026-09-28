@@ -111,9 +111,86 @@ namespace WinRealtimeWhisperSmokeTest
                 Console.WriteLine("FAIL: WAV が小さすぎます（録音できていない）");
                 ok = false;
             }
+            else if (!CheckWav(wavOut))
+            {
+                ok = false;
+            }
 
             Console.WriteLine(ok ? "INTEGRATION OK" : "INTEGRATION FAILED: 期待した語がありません");
             return ok ? 0 : 1;
+        }
+
+        /// <summary>
+        /// 書いた WAV が音声として成立しているかを確かめる。
+        ///
+        /// float のサンプルを 16bit のつもりで書くと、生の float バイトが PCM として
+        /// 並び、振幅も波形も滅茶苦茶になる。長さだけ見ても気づけないので、
+        /// 実際に復号して波形の性質（不連続の少なさ）を見る。
+        /// </summary>
+        private static bool CheckWav(string path)
+        {
+            using (var reader = new WaveFileReader(path))
+            {
+                Console.WriteLine("  format: " + reader.WaveFormat);
+
+                if (reader.WaveFormat.BitsPerSample != 16
+                    || reader.WaveFormat.SampleRate != 44100
+                    || reader.WaveFormat.Channels != 2)
+                {
+                    Console.WriteLine("FAIL: WAV の形式が 44.1kHz/16bit/2ch ではありません");
+                    return false;
+                }
+
+                var buffer = new byte[reader.Length > 4 * 1024 * 1024 ? 4 * 1024 * 1024 : (int)reader.Length];
+                int read = reader.Read(buffer, 0, buffer.Length);
+                int samples = read / 2;
+
+                if (samples < 44100)
+                {
+                    Console.WriteLine("FAIL: WAV のサンプル数が足りません: " + samples);
+                    return false;
+                }
+
+                double peak = 0;
+                double sum = 0;
+                double diffSum = 0;
+
+                short previous = 0;
+                for (int i = 0; i < samples; i++)
+                {
+                    short value = (short)(buffer[i * 2] | (buffer[i * 2 + 1] << 8));
+                    double magnitude = Math.Abs((double)value);
+
+                    if (magnitude > peak) peak = magnitude;
+                    sum += magnitude;
+
+                    if (i > 0) diffSum += Math.Abs(value - previous);
+                    previous = value;
+                }
+
+                double mean = sum / samples;
+                double step = diffSum / (samples - 1);
+
+                Console.WriteLine("  peak=" + peak.ToString("F0")
+                    + " mean=" + mean.ToString("F0")
+                    + " step=" + step.ToString("F0"));
+
+                if (peak < 300)
+                {
+                    Console.WriteLine("FAIL: 振幅が小さすぎます（無音かも）: peak=" + peak);
+                    return false;
+                }
+
+                // 正しい PCM なら隣り合うサンプルの差は小さい。
+                // float を生で書くと、指数部と仮数部が交互に並び、差が跳ね上がる。
+                if (step > 8000)
+                {
+                    Console.WriteLine("FAIL: 波形が不連続です（ノイズ）: step=" + step);
+                    return false;
+                }
+
+                return true;
+            }
         }
 
         private static void SynthesizeJapanese(string path)
