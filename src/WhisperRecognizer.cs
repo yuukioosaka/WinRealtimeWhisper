@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Whisper.net;
+using Whisper.net.LibraryLoader;
 
 namespace WinRealtimeWhisper
 {
@@ -39,6 +40,9 @@ namespace WinRealtimeWhisper
         /// <summary>これ未満の長さの区間は推論しない（秒）。</summary>
         public double MinProcessSeconds { get; set; }
 
+        /// <summary>Vulkan（GPU）を優先するか。使えなければ CPU へ落ちる。</summary>
+        public bool PreferGpu { get; set; }
+
         public WhisperOptions()
         {
             ModelPath = string.Empty;
@@ -50,6 +54,7 @@ namespace WinRealtimeWhisper
             PadSeconds = 0.25;
             SilenceRms = 0.0022;
             MinProcessSeconds = 0.5;
+            PreferGpu = true;
         }
     }
 
@@ -223,11 +228,13 @@ namespace WinRealtimeWhisper
                 + " (" + new FileInfo(modelPath).Length / (1024 * 1024) + " MB)");
 
             var sw = Stopwatch.StartNew();
-            _runner = new WhisperRunner(modelPath, threads, _options.Language);
+            _runner = new WhisperRunner(modelPath, threads, _options.Language, _options.PreferGpu);
             sw.Stop();
 
             DiagLog.Write("[whisper] model loaded in " + sw.ElapsedMilliseconds + " ms");
             DiagLog.Write("[whisper] threads=" + _runner.Threads + " cpu=" + Environment.ProcessorCount);
+            DiagLog.Write("[whisper] backend=" + WhisperRunner.LoadedLibrary
+                + " preferGpu=" + _options.PreferGpu);
             DiagLog.Write("[whisper] runtime: " + _runner.RuntimeInfo);
             DiagLog.Write(string.Format(
                 "[whisper] chunk: min={0}s silenceSplit={1}s max={2}s silenceRms={3}",
@@ -656,12 +663,26 @@ namespace WinRealtimeWhisper
     /// </summary>
     internal sealed class WhisperRunner : IDisposable
     {
+        // ネイティブライブラリの選択はプロセスで 1 回だけ。
+        // ここで設定しないと、モデルごとに別のバックエンドを選べてしまう。
+        private static bool _runtimeConfigured;
+        private static readonly object _runtimeSync = new object();
+
         private readonly WhisperFactory _factory;
         private readonly string _language;
         private readonly object _sync = new object();
 
-        public WhisperRunner(string modelPath, int threads, string language)
+        public WhisperRunner(string modelPath, int threads, string language, bool preferGpu)
         {
+            lock (_runtimeSync)
+            {
+                if (!_runtimeConfigured)
+                {
+                    ConfigureRuntime(preferGpu);
+                    _runtimeConfigured = true;
+                }
+            }
+
             _factory = WhisperFactory.FromPath(modelPath);
             _language = string.IsNullOrEmpty(language) ? "ja" : language;
             Threads = threads;
@@ -671,6 +692,28 @@ namespace WinRealtimeWhisper
         public int Threads { get; private set; }
 
         public string RuntimeInfo { get; private set; }
+
+        /// <summary>実際に読み込まれたネイティブライブラリ。Vulkan が使えない環境では Cpu になる。</summary>
+        public static RuntimeLibrary LoadedLibrary
+        {
+            get
+            {
+                var loaded = RuntimeOptions.LoadedLibrary;
+                return loaded.HasValue ? loaded.Value : RuntimeLibrary.Cpu;
+            }
+        }
+
+        /// <summary>
+        /// 使うネイティブライブラリの優先順位を決める。
+        /// Vulkan があれば GPU で動き、無ければ CPU へ自動で落ちる。
+        /// 順序に Cpu を必ず残しておくのがフォールバックの条件。
+        /// </summary>
+        public static void ConfigureRuntime(bool preferGpu)
+        {
+            RuntimeOptions.RuntimeLibraryOrder = preferGpu
+                ? new List<RuntimeLibrary> { RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx }
+                : new List<RuntimeLibrary> { RuntimeLibrary.Cpu, RuntimeLibrary.CpuNoAvx };
+        }
 
         /// <summary>16kHz モノラルの float サンプルを文字起こしする（同期・ブロッキング）。</summary>
         public string Transcribe(float[] samples)

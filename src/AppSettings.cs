@@ -61,6 +61,12 @@ namespace WinRealtimeWhisper
         public double SilenceSplitSeconds { get; set; }
 
         /// <summary>
+        /// Vulkan（GPU）を優先するか。true でも Vulkan が使えない環境では CPU へ落ちる。
+        /// false にすると常に CPU。GPU で逆に遅くなる環境向けの逃げ道。
+        /// </summary>
+        public bool PreferGpu { get; set; }
+
+        /// <summary>
         /// UI の表示言語（ja / en）。空なら Windows の表示言語に従う。
         /// 認識する言語（WhisperLanguage）とは別物。
         /// </summary>
@@ -101,6 +107,7 @@ namespace WinRealtimeWhisper
             LatencyProfile = 1;
             MaxChunkSeconds = 30.0;
             SilenceSplitSeconds = 0.0;
+            PreferGpu = true;
             UiLanguage = string.Empty;
             HistoryDirectory = string.Empty;
             WavDirectory = string.Empty;
@@ -269,6 +276,12 @@ namespace WinRealtimeWhisper
                         }
                     }
 
+                    bool preferGpu;
+                    if (values.TryGetValue("PreferGpu", out v) && bool.TryParse(v, out preferGpu))
+                    {
+                        s.PreferGpu = preferGpu;
+                    }
+
                     AudioSourceKind kind;
                     if (values.TryGetValue("SourceKind", out v) && Enum.TryParse(v, true, out kind))
                     {
@@ -314,6 +327,7 @@ namespace WinRealtimeWhisper
                 System.Globalization.CultureInfo.InvariantCulture) + ",");
             sb.AppendLine("  \"SilenceSplitSeconds\": " + SilenceSplitSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");
+            sb.AppendLine("  \"PreferGpu\": " + (PreferGpu ? "true" : "false") + ",");
             AppendValue(sb, "SourceKind", SourceKind.ToString(), false);
             sb.AppendLine("}");
 

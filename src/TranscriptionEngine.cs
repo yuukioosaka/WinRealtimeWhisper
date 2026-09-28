@@ -239,6 +239,7 @@ namespace WinRealtimeWhisper
                     ModelPath = modelPath,
                     Language = string.IsNullOrEmpty(settings.WhisperLanguage) ? "ja" : settings.WhisperLanguage,
                     Threads = 0,
+                    PreferGpu = settings.PreferGpu,
                     MaxChunkSeconds = ApplyProfile(
                         settings.MaxChunkSeconds, settings.LatencyProfile, 6.0, 8.0, 5.0, 25.0),
                     SilenceSplitSeconds = ApplyProfile(

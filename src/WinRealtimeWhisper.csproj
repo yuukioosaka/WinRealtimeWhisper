@@ -7,7 +7,7 @@
     <LangVersion>7.3</LangVersion>
     <RootNamespace>WinRealtimeWhisper</RootNamespace>
     <AssemblyName>WinRealtimeWhisper</AssemblyName>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <AssemblyTitle>WinRealtimeWhisper</AssemblyTitle>
     <Product>WinRealtimeWhisper</Product>
     <Company>WinRealtimeWhisper</Company>
@@ -30,6 +30,8 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <!-- Vulkan 版。GPU が使えれば Vulkan、だめなら CPU へ自動フォールバックする。 -->
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
     <!-- Windows では Metal (macOS 用 GPU バックエンド) は使わないので、
          シェーダと依存を配布物から外す -->
     <PackageReference Include="Whisper.net.Runtime.Metal" Version="1.9.1">
@@ -40,8 +42,7 @@
 
   <ItemGroup>
     <!-- win-x64 以外のネイティブを出力から外して配布サイズを抑える。
-         これらは NuGet パッケージの build ターゲットが後から足すため、
-         静的な ItemGroup では消えない。下のターゲットで評価後に取り除く。 -->
+         Vulkan 版は runtimes/vulkan/win-x64/ に置かれるので、そちらは残す。 -->
     <Content Remove="runtimes/linux-*/**" />
     <Content Remove="runtimes/macos-*/**" />
     <Content Remove="runtimes/win-arm64/**" />
@@ -60,14 +61,16 @@
 
   <!-- NuGet のビルドターゲットが評価後に足した項目を、コピー前に取り除く。
        これらは None 項目で、Identity はパッケージ内のパス、出力先は TargetPath
-       メタデータで決まる。そのため TargetPath で絞り込む。 -->
+       メタデータで決まる。そのため TargetPath で絞り込む。
+       CPU 版は runtimes/win-x64/、Vulkan 版は runtimes/vulkan/win-x64/ に置かれる。
+       この 2 つだけを残し、linux/macos/arm64/x86 は落とす。 -->
   <Target Name="DropForeignRuntimes" BeforeTargets="AssignTargetPaths">
     <ItemGroup>
       <_ForeignRuntime Include="@(None)"
-          Condition="'%(None.TargetPath)' != '' AND $([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/win-x64/'))" />
+          Condition="'%(None.TargetPath)' != '' AND $([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/win-x64/')) AND !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/vulkan/win-x64/'))" />
       <None Remove="@(_ForeignRuntime)" />
       <_ForeignContent Include="@(Content)"
-          Condition="'%(Content.TargetPath)' != '' AND $([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/win-x64/'))" />
+          Condition="'%(Content.TargetPath)' != '' AND $([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/')) AND !$([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/win-x64/')) AND !$([System.String]::Copy('%(Content.TargetPath)').StartsWith('runtimes/vulkan/win-x64/'))" />
       <Content Remove="@(_ForeignContent)" />
       <None Remove="ggml-metal.metal" />
     </ItemGroup>

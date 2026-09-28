@@ -52,7 +52,7 @@ dropping to `base` or `tiny` makes a large difference.
 | Tab | What you can set |
 | --- | --- |
 | General | Display language (Japanese / English) |
-| Audio | Toggle loopback output and microphone capture, choose the devices, and set the **segment cycle** (5 / 10 / 15 / 30 s), the **silence split** (0.20-3.00 s) and the **recognition language** |
+| Audio | Toggle loopback output and microphone capture, choose the devices, and set the **segment cycle** (5 / 10 / 15 / 30 s), the **silence split** (0.20-3.00 s), the **recognition language** and **GPU (Vulkan)** |
 | Model | The ggml model to use, and download |
 | Storage | Folders for text / WAV / models / logs (use **Browse** to change them) |
 
@@ -69,6 +69,11 @@ more likely to be cut in half. The default is 0.20 s.
 The **recognition language** is the spoken language (Japanese / English / Chinese /
 Korean / detect automatically). The default is Japanese. It is separate from the
 display language on the General tab.
+
+**Use the GPU (Vulkan)** runs inference on a Vulkan-capable GPU when one is present.
+When there is no usable GPU (or the driver is too old), it **falls back to the CPU
+automatically**. Check the `backend=` line in the log to see which one was picked.
+Turn it off if the GPU turns out to be slower (takes effect from the next recording).
 
 **View > Always on top** keeps the window above other windows. That setting is
 saved too and is restored the next time you start the app.
@@ -232,6 +237,11 @@ The following line is recorded every 2 seconds.
   segments from ever being cut).
 - **Stop handling**: On stop the app waits for the segment thread to finish and
   then transcribes the remainder, so speech right before stopping is not lost.
+- **GPU selection**: Both the CPU and the Vulkan native libraries ship with the
+  app, and the loader picks one by priority (Vulkan, then CPU). On machines where
+  Vulkan is unavailable it selects the CPU DLL automatically, so the app never has
+  to detect the hardware itself. The log's `backend=` line shows which one was
+  chosen (`Vulkan` or `Cpu`).
 
 ## Known limitations
 

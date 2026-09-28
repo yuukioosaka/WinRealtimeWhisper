@@ -25,6 +25,7 @@ namespace WinRealtimeWhisper
         private ComboBox _cmbWhisperLanguage;
         private ComboBox _cmbCycle;
         private NumericUpDown _numSilence;
+        private CheckBox _chkPreferGpu;
         private Label _lblModelState;
 
         private Button _btnDownload;
@@ -176,7 +177,7 @@ namespace WinRealtimeWhisper
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 11
+                RowCount = 13
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -234,6 +235,26 @@ namespace WinRealtimeWhisper
             }
             layout.Controls.Add(_cmbWhisperLanguage, 1, 6);
 
+            _chkPreferGpu = new CheckBox
+            {
+                Text = Loc.T("settings.audio.preferGpu"),
+                AutoSize = true,
+                Margin = new Padding(3, 4, 3, 2)
+            };
+            layout.Controls.Add(_chkPreferGpu, 0, 7);
+            layout.SetColumnSpan(_chkPreferGpu, 2);
+
+            var gpuNote = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(500, 0),
+                Margin = new Padding(3, 0, 3, 8),
+                ForeColor = Color.DimGray,
+                Text = Loc.T("settings.audio.gpuNote")
+            };
+            layout.Controls.Add(gpuNote, 0, 8);
+            layout.SetColumnSpan(gpuNote, 2);
+
             var silenceNote = new Label
             {
                 AutoSize = true,
@@ -242,7 +263,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.silenceNote")
             };
-            layout.Controls.Add(silenceNote, 0, 7);
+            layout.Controls.Add(silenceNote, 0, 9);
             layout.SetColumnSpan(silenceNote, 2);
 
             var cycleNote = new Label
@@ -253,7 +274,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.cycleNote")
             };
-            layout.Controls.Add(cycleNote, 0, 8);
+            layout.Controls.Add(cycleNote, 0, 10);
             layout.SetColumnSpan(cycleNote, 2);
 
             var note = new Label
@@ -264,7 +285,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.note")
             };
-            layout.Controls.Add(note, 0, 9);
+            layout.Controls.Add(note, 0, 11);
             layout.SetColumnSpan(note, 2);
 
             page.Controls.Add(layout);
@@ -536,6 +557,8 @@ namespace WinRealtimeWhisper
             _numSilence.Value = silence;
 
             SelectWhisperLanguageInCombo(_settings.WhisperLanguage);
+
+            _chkPreferGpu.Checked = _settings.PreferGpu;
 
             // 未設定でも実際に使われる既定のパスを初期表示する。
             _txtHistoryDir.Text = string.IsNullOrWhiteSpace(_settings.HistoryDirectory)
@@ -826,6 +849,7 @@ namespace WinRealtimeWhisper
             }
 
             _settings.SilenceSplitSeconds = (double)_numSilence.Value;
+            _settings.PreferGpu = _chkPreferGpu.Checked;
 
             var whisperLanguage = _cmbWhisperLanguage.SelectedItem as WhisperLanguageItem;
             if (whisperLanguage != null)
