@@ -42,6 +42,10 @@ namespace WinRealtimeWhisper
         private TimeSpan _vttHeartbeatInterval = TimeSpan.FromSeconds(5);
         private RealtimeWebSocketHub _realtime;
         private long _finalSequence;
+
+        // VAD の現在の状態。変化したときだけイベントを流すために持つ。
+        private bool _speaking;
+
         private DateTime _startedAt;
 
         /// <summary>話者ラベル。VTT 出力に使う。</summary>
@@ -420,6 +424,7 @@ namespace WinRealtimeWhisper
                 RaiseStatus(inputFile != null
                     ? Loc.T("status.recognizingFile")
                     : Loc.T("status.recording"));
+                _speaking = false;
                 RaiseSpeech(false);
                 RaiseStarted();
             }
@@ -756,7 +761,7 @@ namespace WinRealtimeWhisper
                 WriteWav(samples, format);
 
                 RaiseLevel(CalculateLevel(samples));
-                RaiseSpeech(IsSpeech(samples, format.SampleRate, format.Channels));
+                UpdateSpeechState(IsSpeech(samples, format.SampleRate, format.Channels));
             }
             catch (Exception ex)
             {
@@ -1005,6 +1010,24 @@ namespace WinRealtimeWhisper
             }
         }
 
+        /// <summary>
+        /// VAD の生の判定を、状態が変わったときだけ流す。
+        ///
+        /// OpenAI の speech_started / speech_stopped は「変化した瞬間」の
+        /// イベントなので、毎コールバックの判定値をそのまま流すと
+        /// 発話中ずっと speech_started が届いてしまう。
+        /// </summary>
+        private void UpdateSpeechState(bool speaking)
+        {
+            if (_speaking == speaking)
+            {
+                return;
+            }
+
+            _speaking = speaking;
+            RaiseSpeech(speaking);
+        }
+
         private void RaiseError(string message, Exception ex)
         {
             DiagLog.Write("[ERROR] " + message);
@@ -1196,6 +1219,7 @@ namespace WinRealtimeWhisper
 
             CleanupAfterStop();
 
+            _speaking = false;
             RaiseSpeech(false);
             RaiseLevel(0f);
 
