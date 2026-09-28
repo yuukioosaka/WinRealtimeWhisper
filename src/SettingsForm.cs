@@ -110,7 +110,7 @@ namespace WinRealtimeWhisper
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(560, 384);
+            ClientSize = new Size(560, 580);
 
             var tabs = new TabControl
             {
@@ -181,6 +181,10 @@ namespace WinRealtimeWhisper
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (int i = 0; i < layout.RowCount; i++)
+            {
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            }
 
             _chkUseOutput = new CheckBox { Text = Loc.T("settings.audio.useOutput"), AutoSize = true, Checked = true };
             _chkUseOutput.CheckedChanged += (s, e) => UpdateEnabled();
@@ -304,7 +308,10 @@ namespace WinRealtimeWhisper
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            for (int i = 0; i < layout.RowCount; i++)
+            {
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            }
 
             layout.Controls.Add(NewLabel(Loc.T("settings.model.label")), 0, 0);
 
