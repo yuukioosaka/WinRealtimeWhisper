@@ -36,6 +36,7 @@ namespace WinRealtimeWhisper
         private TextBox _txtVttDir;
         private CheckBox _chkVtt;
         private CheckBox _chkRealtime;
+        private CheckBox _chkRealtimeCors;
         private NumericUpDown _numRealtimePort;
         private Button _btnHistoryDir;
         private Button _btnWavDir;
@@ -502,6 +503,26 @@ namespace WinRealtimeWhisper
             layout.Controls.Add(portHost, 0, 8);
             layout.SetColumnSpan(portHost, 3);
 
+            _chkRealtimeCors = new CheckBox
+            {
+                Text = Loc.T("settings.realtime.cors"),
+                AutoSize = true,
+                Margin = new Padding(3, 4, 3, 2)
+            };
+            layout.Controls.Add(_chkRealtimeCors, 0, 9);
+            layout.SetColumnSpan(_chkRealtimeCors, 3);
+
+            var corsNote = new Label
+            {
+                Text = Loc.T("settings.realtime.corsNote"),
+                AutoSize = true,
+                MaximumSize = new Size(500, 0),
+                ForeColor = Color.DimGray,
+                Margin = new Padding(3, 0, 3, 10)
+            };
+            layout.Controls.Add(corsNote, 0, 10);
+            layout.SetColumnSpan(corsNote, 3);
+
             page.Controls.Add(layout);
             return page;
         }
@@ -645,6 +666,7 @@ namespace WinRealtimeWhisper
             _chkVtt.Checked = _settings.VttEnabled;
 
             _chkRealtime.Checked = _settings.RealtimeServerEnabled;
+            _chkRealtimeCors.Checked = _settings.RealtimeAllowBrowserOrigins;
             int port = _settings.ResolveRealtimePort();
             _numRealtimePort.Value = port >= _numRealtimePort.Minimum && port <= _numRealtimePort.Maximum
                 ? port
@@ -789,6 +811,11 @@ namespace WinRealtimeWhisper
             if (_numRealtimePort != null)
             {
                 _numRealtimePort.Enabled = _chkRealtime.Checked && !_busy;
+            }
+
+            if (_chkRealtimeCors != null)
+            {
+                _chkRealtimeCors.Enabled = _chkRealtime.Checked && !_busy;
             }
         }
 
@@ -953,6 +980,7 @@ namespace WinRealtimeWhisper
             _settings.VttEnabled = _chkVtt.Checked;
             _settings.RealtimeServerEnabled = _chkRealtime.Checked;
             _settings.RealtimeServerPort = (int)_numRealtimePort.Value;
+            _settings.RealtimeAllowBrowserOrigins = _chkRealtimeCors.Checked;
         }
 
         /// <summary>入力が既定パスと同じなら空（未設定）を返す。</summary>

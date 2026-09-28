@@ -64,6 +64,9 @@ namespace WinRealtimeWhisper
         /// <summary>WebSocket サーバーのポート。0 なら未指定（設定に従う）。</summary>
         public int RealtimePort { get; private set; }
 
+        /// <summary>Web ページ（ブラウザ）からの接続を許可する。null なら未指定。</summary>
+        public bool? RealtimeBrowserOrigins { get; private set; }
+
         /// <summary>何も指定されなければ GUI を起動する。</summary>
         public bool RunsHeadless
         {
@@ -219,6 +222,13 @@ namespace WinRealtimeWhisper
                         o.RealtimePort = ParsePort(Value(args, ref i, inline, name));
                         break;
 
+                    case "ws-cors":
+                    case "realtime-cors":
+                    case "websocket-cors":
+                        o.RealtimeServer = true;
+                        o.RealtimeBrowserOrigins = ParseToggle(args, ref i, inline, name);
+                        break;
+
                     default:
                         throw new ArgumentException(Loc.T("cli.unknownOption", arg));
                 }
@@ -340,6 +350,11 @@ namespace WinRealtimeWhisper
                 settings.RealtimeServerPort = RealtimePort;
             }
 
+            if (RealtimeBrowserOrigins.HasValue)
+            {
+                settings.RealtimeAllowBrowserOrigins = RealtimeBrowserOrigins.Value;
+            }
+
             // ファイル入力にループバックは無いので、録音デバイスを開かない種類に寄せる
             if (InputFile != null)
             {
@@ -399,8 +414,7 @@ namespace WinRealtimeWhisper
             w.WriteLine("      --no-vtt             ライブ文字起こし(WebVTT)を書かない。");
             w.WriteLine("      --ws                 OpenAI Realtime 互換の WebSocket サーバーを立てる。");
             w.WriteLine("      --ws-port <ポート>   待ち受けポート (既定 8765)。--ws も同時に有効になります。");
-            w.WriteLine("      --ws                 OpenAI Realtime 互換の WebSocket サーバーを立てる。");
-            w.WriteLine("      --ws-port <ポート>   待ち受けポート (既定 8765)。--ws も同時に有効になります。");
+            w.WriteLine("      --ws-cors [on|off]   Web ページからの接続を許可する (既定 off)。");
             w.WriteLine();
             w.WriteLine("認識:");
             w.WriteLine("  -m, --model <名前|パス> ggml モデル。名前だけなら既定のフォルダから探します。");
@@ -450,6 +464,7 @@ namespace WinRealtimeWhisper
             w.WriteLine("      --no-vtt            Do not write the live WebVTT transcript.");
             w.WriteLine("      --ws                 Run an OpenAI Realtime compatible WebSocket server.");
             w.WriteLine("      --ws-port <port>     Listening port (default 8765). Also enables --ws.");
+            w.WriteLine("      --ws-cors [on|off]   Accept connections from web pages (default off).");
             w.WriteLine();
             w.WriteLine("Recognition:");
             w.WriteLine("  -m, --model <name|path> ggml model. A bare name is looked up in the default folder.");
@@ -571,6 +586,44 @@ namespace WinRealtimeWhisper
             }
 
             return port;
+        }
+
+        /// <summary>
+        /// on/off 形式の値を読む。値を省略した場合は有効として扱う。
+        /// </summary>
+        private static bool ParseToggle(string[] args, ref int i, string inline, string name)
+        {
+            string text;
+            if (inline != null)
+            {
+                text = inline;
+            }
+            else if (i + 1 < args.Length && !args[i + 1].StartsWith("-", StringComparison.Ordinal))
+            {
+                text = Value(args, ref i, null, name);
+            }
+            else
+            {
+                text = "on";
+            }
+
+            switch (text.Trim().ToLowerInvariant())
+            {
+                case "on":
+                case "true":
+                case "yes":
+                case "1":
+                    return true;
+
+                case "off":
+                case "false":
+                case "no":
+                case "0":
+                    return false;
+
+                default:
+                    throw new ArgumentException(Loc.T("cli.notAToggle", text));
+            }
         }
 
         private static double ParseSeconds(string text)

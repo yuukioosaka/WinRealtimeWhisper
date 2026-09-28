@@ -20,8 +20,16 @@ namespace WinRealtimeWhisper
     /// </summary>
     internal sealed class RealtimeWebSocketHub : IDisposable
     {
-        private const string EndpointPath = "/v1/realtime/";
         private const string Prefix = "http://127.0.0.1:{0}/";
+
+        /// <summary>
+        /// ブラウザからの接続を許すか。
+        ///
+        /// WebSocket には CORS の仕組みが無く、Origin を見て可否を決めるのは
+        /// サーバーの責任になる。待ち受けは 127.0.0.1 だけなので、許可しても
+        /// 届くのは同じ機械のブラウザに限られる。
+        /// </summary>
+        private bool _allowBrowserOrigins;
 
         private readonly object _sync = new object();
         private readonly List<Client> _clients = new List<Client>();
@@ -45,6 +53,16 @@ namespace WinRealtimeWhisper
 
         /// <summary>実際に待ち受けているポート。0 を指定した場合は OS が決めた値になる。</summary>
         public int Port { get; private set; }
+
+        /// <summary>
+        /// ブラウザからの接続を許可する。既定は無効で、NuGet の設定から切り替える。
+        /// 無効のとき Origin 付きの接続は 403 で断る。
+        /// </summary>
+        public bool AllowBrowserOrigins
+        {
+            get { return _allowBrowserOrigins; }
+            set { _allowBrowserOrigins = value; }
+        }
 
         /// <summary>いま接続しているクライアント数。</summary>
         public int ClientCount
@@ -225,6 +243,27 @@ namespace WinRealtimeWhisper
         /// <summary>1 接続分。ハンドシェイク後は切断されるまで受信を読み捨てる。</summary>
         private async Task ServeAsync(HttpListenerContext context)
         {
+            // ブラウザからの接続は Origin の有無で見分ける。
+            // WebSocket のハンドシェイクは CORS のプリフライトを通らないので、
+            // 応答ヘッダではなくここで判断する必要がある。
+            string origin = context.Request.Headers["Origin"];
+            bool browserRequest = !string.IsNullOrEmpty(origin);
+
+            if (browserRequest && !_allowBrowserOrigins)
+            {
+                DiagLog.Write("[ws] rejected browser origin: " + origin);
+                await RejectOriginAsync(context, origin).ConfigureAwait(false);
+                return;
+            }
+
+            // ブラウザからの要求には応答ヘッダを付ける。WebSocket 自体は
+            // CORS の対象外だが、事前確認の HEAD/GET に答えるため。
+            if (browserRequest)
+            {
+                context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                context.Response.Headers["Vary"] = "Origin";
+            }
+
             if (!context.Request.IsWebSocketRequest)
             {
                 await RejectHttpAsync(context).ConfigureAwait(false);
@@ -244,6 +283,11 @@ namespace WinRealtimeWhisper
                 lock (_sync)
                 {
                     _clients.Add(client);
+                }
+
+                if (browserRequest)
+                {
+                    DiagLog.Write("[ws] browser client accepted from " + origin);
                 }
 
                 Interlocked.Increment(ref _totalConnections);
@@ -310,6 +354,41 @@ namespace WinRealtimeWhisper
                 }
 
                 DiagLog.Write("[ws] client disconnected (" + ClientCount + " active)");
+            }
+        }
+
+        /// <summary>Origin 付きの接続を設定で断ったときの応答。</summary>
+        private async Task RejectOriginAsync(HttpListenerContext context, string origin)
+        {
+            string body = "Browser access is disabled. Enable \"Allow browser access (CORS)\" "
+                + "in the settings to accept connections from web pages.\r\n"
+                + "Origin: " + origin + "\r\n";
+
+            byte[] bytes = Encoding.UTF8.GetBytes(body);
+            context.Response.StatusCode = 403;
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            context.Response.ContentLength64 = bytes.Length;
+
+            // ハンドシェイクを続けないことを明示する。これが無いと
+            // クライアントは切断として見て、理由（403）が届かないことがある。
+            context.Response.Headers["Connection"] = "close";
+
+            try
+            {
+                await context.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                try
+                {
+                    context.Response.Close();
+                }
+                catch (Exception)
+                {
+                }
             }
         }
 

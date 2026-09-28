@@ -137,8 +137,93 @@ namespace WinRealtimeWhisperSmokeTest
                     "HTTP response should reject a plain GET: " + httpBody);
             }
 
+            CheckBrowserOrigins();
+
             Console.WriteLine("REALTIME OK");
             return 0;
+        }
+
+        /// <summary>
+        /// ブラウザからの接続（Origin 付き）の扱いを確かめる。
+        ///
+        /// WebSocket のハンドシェイクは CORS のプリフライトを通らないため、
+        /// 許可するかどうかはサーバーが Origin を見て決める必要がある。
+        /// </summary>
+        private static void CheckBrowserOrigins()
+        {
+            const string origin = "http://localhost:5173";
+
+            // 既定（無効）では Origin 付きの接続を断る
+            using (var hub = new RealtimeWebSocketHub(0))
+            {
+                hub.Start();
+
+                // ClientWebSocket は非 101 の応答を「接続できません」に潰して
+                // 詳細を捨てるので、同じヘッダを付けた HTTP 要求で確かめる。
+                Check(GetStatus(hub.Port, origin, out _) == 403,
+                    "a browser origin should be rejected with 403 by default");
+
+                // Origin が無ければ（通常のアプリなら）既定でもつながる
+                using (var client = new WsClient(hub.Port))
+                {
+                    client.Connect();
+                    Check(RealtimeEvents.ExtractType(client.ReadText()) == "session.created",
+                        "a non-browser client should still connect");
+                }
+            }
+
+            // 有効にすれば Origin 付きでもつながる
+            using (var hub = new RealtimeWebSocketHub(0))
+            {
+                hub.AllowBrowserOrigins = true;
+                hub.Start();
+
+                using (var client = new WsClient(hub.Port, origin))
+                {
+                    client.Connect();
+                    Check(RealtimeEvents.ExtractType(client.ReadText()) == "session.created",
+                        "an allowed browser client should receive session.created");
+
+                    hub.Broadcast(RealtimeEvents.TranscriptionCompleted(
+                        1, "item_1", "ブラウザ", null, TimeSpan.Zero, TimeSpan.Zero));
+                    Check(RealtimeEvents.Extract(client.ReadText(), "transcript") == "ブラウザ",
+                        "an allowed browser client should receive broadcasts");
+                }
+            }
+
+            Console.WriteLine("  browser origins: default off, opt-in works");
+        }
+
+        /// <summary>Origin を付けて GET し、ステータスコードと本文を返す。</summary>
+        private static int GetStatus(int port, string origin, out string body)
+        {
+            body = string.Empty;
+
+            var request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(
+                "http://127.0.0.1:" + port + "/v1/realtime");
+            request.Headers["Origin"] = origin;
+            request.Timeout = 5000;
+
+            try
+            {
+                using (var response = (System.Net.HttpWebResponse)request.GetResponse())
+                {
+                    return (int)response.StatusCode;
+                }
+            }
+            catch (System.Net.WebException ex)
+            {
+                var response = ex.Response as System.Net.HttpWebResponse;
+                if (response == null)
+                {
+                    return -1;
+                }
+
+                using (response)
+                {
+                    return (int)response.StatusCode;
+                }
+            }
         }
 
         private static bool TryHttpGet(int port, out string body)
@@ -188,20 +273,50 @@ namespace WinRealtimeWhisperSmokeTest
         private sealed class WsClient : IDisposable
         {
             private readonly int _port;
+            private readonly string _origin;
             private ClientWebSocket _socket;
 
             public WsClient(int port)
+                : this(port, null)
+            {
+            }
+
+            public WsClient(int port, string origin)
             {
                 _port = port;
+                _origin = origin;
             }
 
             public void Connect()
             {
+                string error = TryConnect();
+                Check(error == null, "connect failed: " + error);
+            }
+
+            /// <summary>接続を試す。失敗したら理由を返し、成功なら null。</summary>
+            public string TryConnect()
+            {
                 _socket = new ClientWebSocket();
+
+                if (!string.IsNullOrEmpty(_origin))
+                {
+                    _socket.Options.SetRequestHeader("Origin", _origin);
+                }
+
                 var uri = new Uri("ws://127.0.0.1:" + _port + "/v1/realtime");
-                _socket.ConnectAsync(uri, CancellationToken.None).Wait(TimeSpan.FromSeconds(10));
-                Check(_socket.State == WebSocketState.Open,
-                    "client should be open, state=" + _socket.State);
+
+                try
+                {
+                    _socket.ConnectAsync(uri, CancellationToken.None).Wait(TimeSpan.FromSeconds(10));
+                }
+                catch (Exception ex)
+                {
+                    return ex.GetBaseException().Message;
+                }
+
+                return _socket.State == WebSocketState.Open
+                    ? null
+                    : "state=" + _socket.State;
             }
 
             /// <summary>サーバーからのテキストメッセージを 1 つ読む。</summary>

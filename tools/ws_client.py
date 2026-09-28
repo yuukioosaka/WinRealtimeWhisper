@@ -30,7 +30,7 @@ except ImportError:
     )
 
 
-async def read_events(uri, count, connect_timeout, idle_timeout, show_all):
+async def read_events(uri, count, connect_timeout, idle_timeout, show_all, origin):
     """Connect, then print events until enough segments arrive or the link closes."""
 
     # サーバーは録音と同時にポートを開くので、開くまで待つ。
@@ -38,12 +38,20 @@ async def read_events(uri, count, connect_timeout, idle_timeout, show_all):
     deadline = loop.time() + connect_timeout
     socket = None
 
+    # ブラウザの WebSocket と同じ状況を作るため Origin を付けられるようにする。
+    # サーバーはこれを「Web ページからの接続」として扱う。
+    extra_headers = {"Origin": origin} if origin else None
+
     while loop.time() < deadline:
         try:
-            socket = await websockets.connect(uri)
+            socket = await websockets.connect(uri, additional_headers=extra_headers)
             break
         except (OSError, ConnectionRefusedError):
             await asyncio.sleep(0.5)
+        except Exception as ex:
+            # 403 などで拒否された場合は待っても変わらないので即座に報告する。
+            print("The server refused the connection: %s" % ex, file=sys.stderr)
+            return 1
 
     if socket is None:
         print("Could not connect to %s within %.0f s." % (uri, connect_timeout), file=sys.stderr)
@@ -114,13 +122,17 @@ def main():
                         help="seconds of silence before giving up (default: 30)")
     parser.add_argument("--all", action="store_true",
                         help="also print speech_started / speech_stopped events")
+    parser.add_argument("--origin", default=None,
+                        help="send an Origin header, as a web page would; "
+                             "the server rejects it unless --ws-cors is on")
     args = parser.parse_args()
 
     uri = args.url or "ws://%s:%d/v1/realtime" % (args.host, args.port)
 
     try:
         return asyncio.run(read_events(
-            uri, args.count, args.connect_timeout, args.idle_timeout, args.all))
+            uri, args.count, args.connect_timeout, args.idle_timeout, args.all,
+            args.origin))
     except KeyboardInterrupt:
         return 0
 

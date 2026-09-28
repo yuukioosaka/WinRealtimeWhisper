@@ -534,6 +534,7 @@ namespace WinRealtimeWhisper
             try
             {
                 var hub = new RealtimeWebSocketHub(settings.ResolveRealtimePort());
+                hub.AllowBrowserOrigins = settings.RealtimeAllowBrowserOrigins;
                 hub.SetSession(
                     _startedAt.ToString("yyyy-MM-dd_HHmm", System.Globalization.CultureInfo.InvariantCulture),
                     Path.GetFileName(settings.ModelPath ?? string.Empty),
@@ -541,7 +542,8 @@ namespace WinRealtimeWhisper
                     _startedAt);
                 hub.Start();
                 _realtime = hub;
-                DiagLog.Write("[ws] listening on ws://127.0.0.1:" + hub.Port + "/v1/realtime");
+                DiagLog.Write("[ws] listening on ws://127.0.0.1:" + hub.Port + "/v1/realtime"
+                    + (hub.AllowBrowserOrigins ? " (browser origins allowed)" : string.Empty));
                 RaiseStatus(Loc.T("status.realtimeListening", hub.Port));
             }
             catch (Exception ex)
@@ -569,6 +571,16 @@ namespace WinRealtimeWhisper
             {
                 var hub = _realtime;
                 return hub == null ? 0 : hub.Port;
+            }
+        }
+
+        /// <summary>Web ページからの接続を許可しているか。無効なら false。</summary>
+        public bool RealtimeAllowsBrowserOrigins
+        {
+            get
+            {
+                var hub = _realtime;
+                return hub != null && hub.AllowBrowserOrigins;
             }
         }
 

@@ -172,6 +172,12 @@ server" and the port), or with `--ws` / `--ws-port <port>`. The specification is
 in [docs/realtime-websocket.md](docs/realtime-websocket.md) (Japanese:
 [docs/realtime-websocket.ja.md](docs/realtime-websocket.ja.md)).
 
+Web pages can connect too, but the browser `WebSocket` API has no CORS mechanism
+and deciding whether to accept an `Origin` is the server's job, so browsers are
+**rejected by default**. Allow them with "Allow connections from web pages (CORS)"
+in **Settings > Storage**, or with `--ws-cors on`. The listener is bound to
+`127.0.0.1`, so allowing it only reaches browsers on this machine.
+
 ## Command line
 
 Launching with no arguments opens the GUI as before. Specifying anything related
@@ -198,6 +204,7 @@ WinRealtimeWhisper.exe -i speech.wav
 | `--no-vtt` | Do not write the live WebVTT transcript |
 | `--ws` | Run an OpenAI Realtime compatible WebSocket server |
 | `--ws-port <port>` | WebSocket listening port (default 8765); also enables `--ws` |
+| `--ws-cors <on\|off>` | Accept connections from web pages (default off) |
 | `-m`, `--model <filename>` | ggml model to use |
 | `--model-dir <folder>` | Override the model folder |
 | `-l`, `--language <code>` | Recognition language (default `ja`) |

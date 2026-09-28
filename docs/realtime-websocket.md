@@ -23,6 +23,7 @@ and discarded, except for `ping` and `close`.
 | Direction | Server → client only |
 | Payload | Text frames, one JSON event per frame |
 | Default port | `8765` |
+| Browsers | Rejected by default; opt in via settings ([Browser access](#browser-access)) |
 
 ```
 ws://127.0.0.1:8765/v1/realtime
@@ -129,6 +130,39 @@ A recoverable server-side problem. The connection stays open.
 }
 ```
 
+## Browser access
+
+The browser `WebSocket` API has **no CORS mechanism**. Browsers only send an `Origin`
+header; whether to accept it is the server's decision (no preflight is performed).
+This server therefore distinguishes clients by the presence of `Origin` and
+**rejects** them by default.
+
+| Caller | Default | When allowed |
+| --- | --- | --- |
+| Normal app (no `Origin`) | Connects | Connects |
+| Web page (sends `Origin`) | Rejected with `403` | Connects |
+
+To allow it:
+
+- **Settings > Storage** → "Allow connections from web pages (CORS)"
+- Command line: `--ws-cors on` (use `--ws-cors off` to revert)
+
+The listener is bound to `127.0.0.1`, so allowing browser access only reaches
+browsers **on this machine**. Even so, any local web page can then read the
+transcript, so leave it off unless you need it.
+
+When allowed, responses carry `Access-Control-Allow-Origin: <requester>` and
+`Vary: Origin`. When refused, the server returns `403` and a short reason.
+
+```javascript
+// Browser side. No special header is required.
+const ws = new WebSocket("ws://127.0.0.1:8765/v1/realtime");
+ws.onmessage = (e) => {
+  const event = JSON.parse(e.data);
+  if (event.type.endsWith("transcription.completed")) console.log(event.transcript);
+};
+```
+
 ## Client example
 
 A minimal Python client. It only has to read frames and dispatch on `type`.
@@ -158,6 +192,7 @@ asyncio.run(main())
 | `delta` events for in-progress text | Not sent; completed segments only |
 | Cloud models | Local ggml model via whisper.cpp |
 | `wss://` with an API key | `ws://` on loopback, no authentication |
+| Validates the browser `Origin` | Uses `Origin` only to allow or deny (denied by default) |
 
 Because the bind address is loopback, no authentication is performed. Anything
 running as the same user can connect; do not treat the stream as confidential

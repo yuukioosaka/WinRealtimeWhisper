@@ -119,6 +119,15 @@ namespace WinRealtimeWhisper
         /// <summary>WebSocket サーバーの待ち受けポート（127.0.0.1）。</summary>
         public int RealtimeServerPort { get; set; }
 
+        /// <summary>
+        /// Web ページ（ブラウザ）からの WebSocket 接続を許可するか。
+        ///
+        /// WebSocket には CORS の仕組みが無いので、Origin 付きの接続を受け入れるかは
+        /// サーバーが決める。待ち受けは 127.0.0.1 なので、許可しても届くのは
+        /// 同じ機械のブラウザだけ。既定は無効。
+        /// </summary>
+        public bool RealtimeAllowBrowserOrigins { get; set; }
+
         /// <summary>前回終了時のウィンドウ左上 X。-1 なら未保存。</summary>
         public int WindowX { get; set; }
 
@@ -181,6 +190,7 @@ namespace WinRealtimeWhisper
             VttHeartbeatSeconds = 5.0;
             RealtimeServerEnabled = false;
             RealtimeServerPort = DefaultRealtimePort;
+            RealtimeAllowBrowserOrigins = false;
             WindowX = -1;
             WindowY = -1;
             WindowWidth = 0;
@@ -388,6 +398,15 @@ namespace WinRealtimeWhisper
                         }
                     });
 
+                    if (values.TryGetValue("RealtimeAllowBrowserOrigins", out v))
+                    {
+                        bool allow;
+                        if (bool.TryParse(v, out allow))
+                        {
+                            s.RealtimeAllowBrowserOrigins = allow;
+                        }
+                    }
+
                     if (values.TryGetValue("WindowMaximized", out v))
                     {
                         bool maximized;
@@ -491,6 +510,8 @@ namespace WinRealtimeWhisper
             sb.AppendLine("  \"WindowMaximized\": " + (WindowMaximized ? "true" : "false") + ",");
             sb.AppendLine("  \"RealtimeServerEnabled\": " + (RealtimeServerEnabled ? "true" : "false") + ",");
             sb.AppendLine("  \"RealtimeServerPort\": " + ResolveRealtimePort() + ",");
+            sb.AppendLine("  \"RealtimeAllowBrowserOrigins\": "
+                + (RealtimeAllowBrowserOrigins ? "true" : "false") + ",");
             sb.AppendLine("  \"LatencyProfile\": " + LatencyProfile + ",");
             sb.AppendLine("  \"MaxChunkSeconds\": " + MaxChunkSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");

@@ -164,6 +164,12 @@ ws://127.0.0.1:8765/v1/realtime
 [docs/realtime-websocket.ja.md](docs/realtime-websocket.ja.md)（英語:
 [docs/realtime-websocket.md](docs/realtime-websocket.md)）にあります。
 
+Web ページからもつなげられますが、ブラウザの `WebSocket` には CORS の仕組みが無く
+Origin を見て可否を決めるのはサーバーの責任なので、**既定では拒否**しています。
+許可するには **設定 > 保存先** の「Web ページからの接続を許可する (CORS)」か
+`--ws-cors on` を使ってください。待ち受けは `127.0.0.1` だけなので、許可しても
+届くのは同じ機械のブラウザに限られます。
+
 ## コマンドライン
 
 引数を付けずに起動すると、これまでどおり GUI が開きます。
@@ -190,6 +196,7 @@ WinRealtimeWhisper.exe -i speech.wav
 | `--no-vtt` | ライブ WebVTT 文字起こしを書き出さない |
 | `--ws` | OpenAI Realtime 互換の WebSocket サーバーを立てる |
 | `--ws-port <ポート>` | WebSocket の待ち受けポート（既定 8765）。`--ws` も有効になります |
+| `--ws-cors <on\|off>` | Web ページからの接続を許可する（既定 off） |
 | `-m`, `--model <ファイル名>` | 使う ggml モデル |
 | `--model-dir <フォルダ>` | モデルの置き場を差し替える |
 | `-l`, `--language <コード>` | 認識する言語（既定 `ja`） |

@@ -72,6 +72,8 @@ namespace WinRealtimeWhisper
             bool failed = false;
             string failure = null;
             bool started = false;
+            int realtimePort = 0;
+            bool realtimeCors = false;
 
             using (var engine = new TranscriptionEngine())
             {
@@ -230,10 +232,14 @@ namespace WinRealtimeWhisper
                         writer.Flush();
                         writer.Dispose();
                     }
+
+                    // 停止すると hub は破棄されるので、報告用に控えておく。
+                    realtimePort = engine.RealtimePort;
+                    realtimeCors = engine.RealtimeAllowsBrowserOrigins;
                 }
             }
 
-            Report(session, textPath, wavPath, vttPath);
+            Report(session, textPath, wavPath, vttPath, realtimePort, realtimeCors);
 
             if (failed)
             {
@@ -248,7 +254,9 @@ namespace WinRealtimeWhisper
             TranscriptionSession session,
             string textPath,
             string wavPath,
-            string vttPath)
+            string vttPath,
+            int realtimePort,
+            bool realtimeCors)
         {
             Console.WriteLine();
             Console.WriteLine(Loc.T("cli.resultHeader"));
@@ -264,6 +272,16 @@ namespace WinRealtimeWhisper
             if (vttPath != null && File.Exists(vttPath))
             {
                 Console.WriteLine(Loc.T("cli.resultVtt", vttPath));
+            }
+
+            if (realtimePort > 0)
+            {
+                Console.WriteLine(Loc.T("cli.resultWs", realtimePort));
+
+                if (realtimeCors)
+                {
+                    Console.WriteLine(Loc.T("cli.resultWsCors"));
+                }
             }
         }
 
