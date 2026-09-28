@@ -64,7 +64,9 @@ Shorter means faster display but less context and lower accuracy. The default is
 
 The **silence split** is how long a pause must last before speech is cut into a new
 segment (0.20-3.00 s). Shorter means finer segments and faster display, but words are
-more likely to be cut in half. The default is 0.20 s.
+more likely to be cut in half. The 0.20-3.00 s range is the input range of the control;
+when unset, the latency profile decides the effective value (0.80 s with the default
+"Balanced", see [Segmentation rules](#segmentation-rules)).
 
 The **recognition language** is the spoken language (Japanese / English / Chinese /
 Korean / detect automatically). The default is Japanese. It is separate from the
@@ -86,7 +88,8 @@ centered window instead of opening off-screen.
 A display-language change takes effect **the next time you start the app**.
 The recognition language can be changed on the **Audio** tab and is separate from it.
 
-Recognition waits for a speech pause ("Silence split", default 0.20 s) before it runs, so
+Recognition waits for a speech pause ("Silence split"; 0.80 s by default when unset)
+before it runs, so
 text appears roughly 1–3 seconds after you stop speaking. If no silence
 arrives, a segment is cut at the configured segment cycle (default 30 s).
 
@@ -105,7 +108,8 @@ restores the default.
 
 - Text is auto-saved periodically while recording, then overwritten with the
   finalized content on stop.
-- The format is plain text, one utterance per line (no timestamps).
+- The format is plain text, one utterance per line (no timestamps; use the WebVTT
+  output below if you need timing).
 - WAV is normalized to 44.1 kHz / 16-bit / stereo (Whisper receives 16 kHz / mono).
 - History is available from **Tools > History**. Double-click an entry, or use
   **Open in editor**, to open the text file.
@@ -245,7 +249,7 @@ buffered without loss while the CPU spends seconds on inference.
 | Rule | Default | Meaning |
 | --- | --- | --- |
 | Minimum segment | 3 s | Do not cut below this (too short means less context and lower accuracy) |
-| Silence duration | 0.8 s | Cut when silence of this length occurs |
+| Silence duration | 0.8 s | Cut when silence of this length occurs (change it with the "Silence split" setting, 0.20-3.00 s; when unset, the "Balanced" latency profile value) |
 | Maximum segment | 30 s | Cut here even if no silence has arrived (change it with the segment cycle setting) |
 | Silence RMS threshold | 0.0022 | Anything below this is treated as silence |
 
@@ -292,13 +296,13 @@ The following line is recorded every 2 seconds.
 | --- | --- |
 | `cb=0` | Capture device could not be opened, or stopped |
 | `rms` at -50 dB or lower | Zero volume, muted, or nothing playing |
-| `rtf` above 1 | Insufficient CPU. Drop `small` → `base` / `tiny` |
+| `rtf` above 1 | Insufficient CPU. Drop `small` → `base` / `tiny` (try `medium` if you have headroom) |
 | `dropped` increasing | Same as above |
 | Text appears during silence | Hallucination. Check `text=` in the `[whisper]` line |
 
 ### Low accuracy
 
-- Use a larger model (`tiny` → `base` → `small`).
+- Use a larger model (`tiny` → `base` → `small` → `medium`).
 - Check the source. Loopback only captures what the PC plays, so for microphone
   audio choose **Microphone** or **Speakers + microphone**.
 - Make sure the language setting matches the audio.
