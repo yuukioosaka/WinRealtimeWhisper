@@ -307,8 +307,42 @@ namespace WinRealtimeWhisper
                 _settings.ModelPath = WhisperModelStore.PathFor(WhisperModelStore.DefaultModelFileName);
             }
 
+            ApplyStoredWindowBounds();
             ApplyStorageSettings();
             ApplyAlwaysOnTop(_settings.AlwaysOnTop);
+        }
+
+        /// <summary>前回終了時の位置と大きさを復元する。未保存や画面外なら既定のまま。</summary>
+        private void ApplyStoredWindowBounds()
+        {
+            Rectangle? stored = _settings.ResolveWindowBounds();
+            if (stored.HasValue)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = stored.Value;
+            }
+
+            if (_settings.WindowMaximized)
+            {
+                WindowState = FormWindowState.Maximized;
+            }
+        }
+
+        /// <summary>終了時の位置と大きさを設定に残す。最大化中でも復元用に通常時の矩形を保存する。</summary>
+        private void CaptureWindowBounds()
+        {
+            _settings.WindowMaximized = WindowState == FormWindowState.Maximized;
+
+            Rectangle bounds = _settings.WindowMaximized ? RestoreBounds : Bounds;
+            if (bounds.Width < 200 || bounds.Height < 120)
+            {
+                return;
+            }
+
+            _settings.WindowX = bounds.X;
+            _settings.WindowY = bounds.Y;
+            _settings.WindowWidth = bounds.Width;
+            _settings.WindowHeight = bounds.Height;
         }
 
         /// <summary>ウィンドウを常に手前に出すかどうかを切り替えて設定に保存する。</summary>
@@ -1158,6 +1192,7 @@ namespace WinRealtimeWhisper
                 }
             }
 
+            CaptureWindowBounds();
             PersistSettings();
             _timer.Stop();
 

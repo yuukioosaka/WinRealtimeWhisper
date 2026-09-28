@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
+using System.Windows.Forms;
 
 namespace WinRealtimeWhisper
 {
@@ -111,6 +113,45 @@ namespace WinRealtimeWhisper
         /// <summary>VTT に書き出す heartbeat の間隔（秒）。</summary>
         public double VttHeartbeatSeconds { get; set; }
 
+        /// <summary>前回終了時のウィンドウ左上 X。-1 なら未保存。</summary>
+        public int WindowX { get; set; }
+
+        /// <summary>前回終了時のウィンドウ左上 Y。</summary>
+        public int WindowY { get; set; }
+
+        /// <summary>前回終了時のウィンドウ幅。</summary>
+        public int WindowWidth { get; set; }
+
+        /// <summary>前回終了時のウィンドウ高さ。</summary>
+        public int WindowHeight { get; set; }
+
+        /// <summary>前回終了時に最大化していたか。</summary>
+        public bool WindowMaximized { get; set; }
+
+        /// <summary>画面外に出ないことを確認した保存済みの位置と大きさ。無ければ null。</summary>
+        public Rectangle? ResolveWindowBounds()
+        {
+            if (WindowWidth < 200 || WindowHeight < 120)
+            {
+                return null;
+            }
+
+            var bounds = Rectangle.FromLTRB(WindowX, WindowY, WindowX + WindowWidth, WindowY + WindowHeight);
+
+            // モニタを外した後でも見える位置に戻す（作業領域と少しでも重なっていれば可）
+            bool visible = false;
+            foreach (Screen screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(bounds))
+                {
+                    visible = true;
+                    break;
+                }
+            }
+
+            return visible ? bounds : (Rectangle?)null;
+        }
+
         public AppSettings()
         {
             ModelPath = string.Empty;
@@ -132,6 +173,11 @@ namespace WinRealtimeWhisper
             VttEnabled = true;
             VttDirectory = string.Empty;
             VttHeartbeatSeconds = 5.0;
+            WindowX = -1;
+            WindowY = -1;
+            WindowWidth = 0;
+            WindowHeight = 0;
+            WindowMaximized = false;
         }
 
         /// <summary>テキスト（履歴）の保存先。未設定なら既定値。</summary>
@@ -301,6 +347,20 @@ namespace WinRealtimeWhisper
                         }
                     }
 
+                    ReadInt(values, "WindowX", x => s.WindowX = x);
+                    ReadInt(values, "WindowY", y => s.WindowY = y);
+                    ReadInt(values, "WindowWidth", w => s.WindowWidth = w);
+                    ReadInt(values, "WindowHeight", h => s.WindowHeight = h);
+
+                    if (values.TryGetValue("WindowMaximized", out v))
+                    {
+                        bool maximized;
+                        if (bool.TryParse(v, out maximized))
+                        {
+                            s.WindowMaximized = maximized;
+                        }
+                    }
+
                     // 旧形式の DeviceId は出力デバイスとして引き継ぐ
                     if (values.TryGetValue("DeviceId", out v) && v.Length > 0)
                     {
@@ -388,6 +448,11 @@ namespace WinRealtimeWhisper
             sb.AppendLine("  \"VttHeartbeatSeconds\": " + VttHeartbeatSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");
             sb.AppendLine("  \"AlwaysOnTop\": " + (AlwaysOnTop ? "true" : "false") + ",");
+            sb.AppendLine("  \"WindowX\": " + WindowX + ",");
+            sb.AppendLine("  \"WindowY\": " + WindowY + ",");
+            sb.AppendLine("  \"WindowWidth\": " + WindowWidth + ",");
+            sb.AppendLine("  \"WindowHeight\": " + WindowHeight + ",");
+            sb.AppendLine("  \"WindowMaximized\": " + (WindowMaximized ? "true" : "false") + ",");
             sb.AppendLine("  \"LatencyProfile\": " + LatencyProfile + ",");
             sb.AppendLine("  \"MaxChunkSeconds\": " + MaxChunkSeconds.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) + ",");
@@ -404,6 +469,16 @@ namespace WinRealtimeWhisper
         {
             sb.Append("  \"").Append(key).Append("\": \"").Append(Escape(value ?? string.Empty)).Append('"');
             sb.AppendLine(comma ? "," : string.Empty);
+        }
+
+        private static void ReadInt(Dictionary<string, string> values, string key, Action<int> setter)
+        {
+            string v;
+            int parsed;
+            if (values.TryGetValue(key, out v) && int.TryParse(v, out parsed))
+            {
+                setter(parsed);
+            }
         }
 
         private static string Escape(string s)

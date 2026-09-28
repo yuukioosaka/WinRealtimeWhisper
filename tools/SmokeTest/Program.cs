@@ -55,6 +55,10 @@ namespace WinRealtimeWhisperSmokeTest
                 {
                     exit = VttSmoke.Run();
                 }
+                else if (args.Length > 1 && args[1] == "window")
+                {
+                    exit = WindowSmoke.Run();
+                }
                 else
                 {
                     TestRecognizer(modelPath);

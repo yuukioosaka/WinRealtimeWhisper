@@ -78,6 +78,11 @@ Turn it off if the GPU turns out to be slower (takes effect from the next record
 **View > Always on top** keeps the window above other windows. That setting is
 saved too and is restored the next time you start the app.
 
+The window's **size, position and maximized state** are saved on exit and
+restored on the next start. If the saved position no longer intersects any
+screen (for example after unplugging a monitor), the app falls back to a
+centered window instead of opening off-screen.
+
 A display-language change takes effect **the next time you start the app**.
 The recognition language can be changed on the **Audio** tab and is separate from it.
 
