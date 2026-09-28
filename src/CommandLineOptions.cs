@@ -52,6 +52,12 @@ namespace WinRealtimeWhisper
         /// <summary>無音がこの秒数続いたら区切る。</summary>
         public double SilenceSplitSeconds { get; private set; }
 
+        /// <summary>ライブ文字起こし(VTT)の保存先。未指定なら null（設定に従う）。</summary>
+        public string VttDirectory { get; private set; }
+
+        /// <summary>ライブ文字起こし(VTT)を書かない。</summary>
+        public bool VttDisabled { get; private set; }
+
         /// <summary>何も指定されなければ GUI を起動する。</summary>
         public bool RunsHeadless
         {
@@ -186,6 +192,14 @@ namespace WinRealtimeWhisper
                         o.SilenceSplitSeconds = ParseSeconds(Value(args, ref i, inline, name));
                         break;
 
+                    case "vtt-dir":
+                        o.VttDirectory = Value(args, ref i, inline, name);
+                        break;
+
+                    case "no-vtt":
+                        o.VttDisabled = true;
+                        break;
+
                     default:
                         throw new ArgumentException(Loc.T("cli.unknownOption", arg));
                 }
@@ -282,6 +296,16 @@ namespace WinRealtimeWhisper
                 settings.SilenceSplitSeconds = SilenceSplitSeconds;
             }
 
+            if (VttDisabled)
+            {
+                settings.VttEnabled = false;
+            }
+
+            if (!string.IsNullOrEmpty(VttDirectory))
+            {
+                settings.VttDirectory = Path.GetFullPath(VttDirectory);
+            }
+
             // ファイル入力にループバックは無いので、録音デバイスを開かない種類に寄せる
             if (InputFile != null)
             {
@@ -336,6 +360,9 @@ namespace WinRealtimeWhisper
             w.WriteLine("  -o, --output <ファイル>  WAV の保存先。");
             w.WriteLine("      --text <ファイル>    文字起こしテキストの保存先。");
             w.WriteLine("                          省略時は ドキュメント\\WinRealtimeWhisper\\ に自動命名で保存します。");
+            w.WriteLine("      --vtt-dir <フォルダ> ライブ文字起こし(WebVTT)の保存先。");
+            w.WriteLine("                          外部アプリがこのファイルを tail してリアルタイム解析できます。");
+            w.WriteLine("      --no-vtt             ライブ文字起こし(WebVTT)を書かない。");
             w.WriteLine();
             w.WriteLine("認識:");
             w.WriteLine("  -m, --model <名前|パス> ggml モデル。名前だけなら既定のフォルダから探します。");
@@ -380,6 +407,9 @@ namespace WinRealtimeWhisper
             w.WriteLine("  -o, --output <file>     Where to save the WAV.");
             w.WriteLine("      --text <file>       Where to save the transcript.");
             w.WriteLine("                          Defaults to Documents\\WinRealtimeWhisper\\ with an automatic name.");
+            w.WriteLine("      --vtt-dir <folder>  Where to write the live WebVTT transcript.");
+            w.WriteLine("                          External apps can tail this file for real-time analysis.");
+            w.WriteLine("      --no-vtt            Do not write the live WebVTT transcript.");
             w.WriteLine();
             w.WriteLine("Recognition:");
             w.WriteLine("  -m, --model <name|path> ggml model. A bare name is looked up in the default folder.");

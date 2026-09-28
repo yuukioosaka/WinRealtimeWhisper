@@ -51,6 +51,10 @@ namespace WinRealtimeWhisperSmokeTest
                 {
                     exit = IntegrationTest.Run(modelPath);
                 }
+                else if (args.Length > 1 && args[1] == "vtt")
+                {
+                    exit = VttSmoke.Run();
+                }
                 else
                 {
                     TestRecognizer(modelPath);

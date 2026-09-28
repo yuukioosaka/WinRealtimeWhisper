@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using Whisper.net;
 
 namespace WinRealtimeWhisper
 {
@@ -30,7 +31,31 @@ namespace WinRealtimeWhisper
         private MMDevice _device;
         private WaveFileWriter _wavWriter;
         private SampleConverter _converter;
-        private WhisperRecognizer _recognizer;
+
+        // 録音の系統ごとに独立した認識器を持つ。混ぜないので話者が確実に分かる。
+        // スピーカー（ループバック）= Remote、マイク = You。
+        private WhisperRecognizer _recognizerRemote;
+        private WhisperRecognizer _recognizerYou;
+        private SharedWhisperModel _sharedModel;
+        private VttTranscriptWriter _vtt;
+        private System.Threading.Timer _vttHeartbeat;
+        private TimeSpan _vttHeartbeatInterval = TimeSpan.FromSeconds(5);
+        private DateTime _startedAt;
+
+        /// <summary>話者ラベル。VTT 出力に使う。</summary>
+        internal const string SpeakerRemote = "Remote";
+        internal const string SpeakerYou = "You";
+
+        /// <summary>音声がどちらの系統から来たか。</summary>
+        internal enum SpeakerKind
+        {
+            /// <summary>スピーカー（ループバック）。会議の相手などの遠隔話者。</summary>
+            Remote,
+
+            /// <summary>マイク。この PC の前の話者。</summary>
+            You
+        }
+
         private Task _startTask;
         private Task _stopTask;
         private AudioFileReader _fileInput;
@@ -90,15 +115,52 @@ namespace WinRealtimeWhisper
         {
             get
             {
-                var r = _recognizer;
-                if (r == null)
+                long inferMs = 0;
+                bool any = false;
+                var remote = _recognizerRemote;
+                if (remote != null)
+                {
+                    inferMs += remote.TotalInferenceMs;
+                    any = true;
+                }
+
+                var you = _recognizerYou;
+                if (you != null)
+                {
+                    inferMs += you.TotalInferenceMs;
+                    any = true;
+                }
+
+                if (!any)
                 {
                     return 0;
                 }
 
                 long audio = Volatile.Read(ref _audioBytes);
                 double seconds = (double)audio / (WhisperSampleRate * 4);
-                return seconds > 0 ? (r.TotalInferenceMs / 1000.0) / seconds : 0;
+                return seconds > 0 ? (inferMs / 1000.0) / seconds : 0;
+            }
+        }
+
+        /// <summary>録音に使っている認識器の一覧（VTT 有効時の話者ラベル決定にも使う）。</summary>
+        private WhisperRecognizer[] Recognizers
+        {
+            get
+            {
+                var remote = _recognizerRemote;
+                var you = _recognizerYou;
+
+                if (remote != null && you != null)
+                {
+                    return new[] { remote, you };
+                }
+
+                if (remote != null)
+                {
+                    return new[] { remote };
+                }
+
+                return you != null ? new[] { you } : new WhisperRecognizer[0];
             }
         }
 
@@ -106,8 +168,28 @@ namespace WinRealtimeWhisper
         {
             get
             {
-                var r = _recognizer;
-                return r != null ? r.DroppedChunks : 0;
+                int total = 0;
+                foreach (var r in Recognizers)
+                {
+                    total += r.DroppedChunks;
+                }
+
+                return total;
+            }
+        }
+
+        /// <summary>推論した区間の総数。</summary>
+        public long InferenceCount
+        {
+            get
+            {
+                long total = 0;
+                foreach (var r in Recognizers)
+                {
+                    total += r.InferenceCount;
+                }
+
+                return total;
             }
         }
 
@@ -116,8 +198,13 @@ namespace WinRealtimeWhisper
         {
             get
             {
-                var r = _recognizer;
-                return r != null ? r.PendingChunks : 0;
+                int total = 0;
+                foreach (var r in Recognizers)
+                {
+                    total += r.PendingChunks;
+                }
+
+                return total;
             }
         }
 
@@ -129,8 +216,13 @@ namespace WinRealtimeWhisper
         {
             get
             {
-                var r = _recognizer;
-                return r != null ? r.BacklogSeconds : 0;
+                double total = 0;
+                foreach (var r in Recognizers)
+                {
+                    total += r.BacklogSeconds;
+                }
+
+                return total;
             }
         }
 
@@ -248,15 +340,24 @@ namespace WinRealtimeWhisper
                         defaults.MinChunkSeconds, settings.LatencyProfile, 2.0, 3.0, 8.0, defaults.MinChunkSeconds)
                 };
 
-                _recognizer = new WhisperRecognizer(options);
-                _recognizer.ResultReady += OnSegmentReady;
-
-                // モデル読み込みは重いので UI を止めないよう、別スレッドで待つ
+                // モデル読み込みは重いので UI を止めないよう、別スレッドで待つ。
+                // ファクトリは 1 つだけ作って両系統で共有する（重みは 1 つ分）。
                 RaiseStatus(Loc.T("status.loadingModel"));
                 DiagLog.Write("[whisper] loading model on background thread...");
-                await Task.Run(() => _recognizer.Initialize()).ConfigureAwait(false);
+                _sharedModel = new SharedWhisperModel(modelPath, settings.PreferGpu);
 
-                DiagLog.Write("[whisper] threads=" + _recognizer.EffectiveThreads);
+                _recognizerRemote = new WhisperRecognizer(options, _sharedModel.Factory);
+                _recognizerRemote.ResultReady += OnRemoteSegmentReady;
+                _recognizerYou = new WhisperRecognizer(options, _sharedModel.Factory);
+                _recognizerYou.ResultReady += OnYouSegmentReady;
+
+                await Task.Run(() =>
+                {
+                    _recognizerRemote.Initialize();
+                    _recognizerYou.Initialize();
+                }).ConfigureAwait(false);
+
+                DiagLog.Write("[whisper] threads=" + _recognizerRemote.EffectiveThreads);
 
                 _wavPath = wavPath;
 
@@ -282,7 +383,12 @@ namespace WinRealtimeWhisper
                         + " mmDevice=" + (_mmDeviceCapture != null));
                 }
 
-                _recognizer.Start();
+                // 系統ごとに音声を分けて認識するため、使わない認識器は起動しない。
+                // 両方使わないときに認識器を止めてしまうと何も出力されない。
+                StartRecognizers(settings, inputFile != null);
+
+                _startedAt = DateTime.Now;
+                StartVtt(settings, inputFile != null);
 
                 _audioBytes = 0;
                 _noiseBytes = 0;
@@ -321,6 +427,88 @@ namespace WinRealtimeWhisper
                 DiagLog.WriteException("StartCoreAsync failed", ex);
                 CleanupAfterStop();
                 RaiseError(Loc.T("cli.engineError", Describe(ex)), ex);
+            }
+        }
+
+        /// <summary>
+        /// 音源の設定に合わせて使う認識器を決める。
+        /// --source both ならループバックとマイクを別々に認識する（話者を分けるため）。
+        /// </summary>
+        private void StartRecognizers(AppSettings settings, bool fileInput)
+        {
+            bool useRemote;
+            bool useYou;
+
+            if (fileInput)
+            {
+                // ファイル入力は 1 系統しかない。話者も分からないので Remote 側だけ使う。
+                useRemote = true;
+                useYou = false;
+            }
+            else
+            {
+                switch (settings.SourceKind)
+                {
+                    case AudioSourceKind.Microphone:
+                        useRemote = false;
+                        useYou = true;
+                        break;
+
+                    case AudioSourceKind.SystemLoopback:
+                        useRemote = true;
+                        useYou = false;
+                        break;
+
+                    default:
+                        useRemote = true;
+                        useYou = _microphone != null;
+                        break;
+                }
+            }
+
+            if (useRemote && _recognizerRemote != null)
+            {
+                _recognizerRemote.Start();
+                DiagLog.Write("[whisper] recognizer started: Remote");
+            }
+
+            if (useYou && _recognizerYou != null)
+            {
+                _recognizerYou.Start();
+                DiagLog.Write("[whisper] recognizer started: You");
+            }
+        }
+
+        /// <summary>設定に応じてライブ文字起こし（WebVTT）の追記を始める。</summary>
+        private void StartVtt(AppSettings settings, bool fileInput)
+        {
+            if (!settings.VttEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                _vtt = new VttTranscriptWriter(
+                    settings.ResolveVttDirectory(),
+                    _startedAt,
+                    settings.WhisperLanguage,
+                    Path.GetFileName(settings.ModelPath ?? string.Empty),
+                    settings.MaxChunkSeconds);
+                _vtt.Start();
+                _vttHeartbeatInterval = settings.ResolveVttHeartbeat();
+                var vtt = _vtt;
+                _vttHeartbeat = new System.Threading.Timer(
+                    _ => vtt.Heartbeat(_vttHeartbeatInterval),
+                    null,
+                    _vttHeartbeatInterval,
+                    _vttHeartbeatInterval);
+                DiagLog.Write("[vtt] writing live transcript: " + _vtt.LivePath);
+            }
+            catch (Exception ex)
+            {
+                DiagLog.WriteException("[vtt] could not start", ex);
+                _vtt = null;
             }
         }
 
@@ -399,7 +587,8 @@ namespace WinRealtimeWhisper
                         Array.Copy(pending, samples, read);
 
                         TrackAudioForLog(samples, format);
-                        PushAudio(samples, format.SampleRate, format.Channels);
+                        // ファイル入力は話者が分からないので、ラベルなしの Remote 側に流す。
+                        PushAudio(samples, format.SampleRate, format.Channels, SpeakerKind.Remote);
                         RaiseLevel(CalculateLevel(samples));
                         RaiseSpeech(IsSpeech(samples, format.SampleRate, format.Channels));
 
@@ -507,7 +696,7 @@ namespace WinRealtimeWhisper
 
                 TrackAudioForLog(samples, format);
 
-                PushAudio(samples, format.SampleRate, format.Channels);
+                PushAudio(samples, format.SampleRate, format.Channels, IsLoopback(sender));
 
                 WriteWav(samples, format);
 
@@ -521,12 +710,21 @@ namespace WinRealtimeWhisper
         }
 
         /// <summary>
-        /// 取り込んだ音を 16kHz モノラルへ変換して認識器へ積む。
-        /// 録音デバイスのコールバックとファイル入力のポンプで共通に使う。
+        /// コールバックの送り主がループバック（スピーカー）かどうかを判定する。
+        /// マイクはどちらでもないので You になる。
         /// </summary>
-        private void PushAudio(float[] samples, int sampleRate, int channels)
+        private static SpeakerKind IsLoopback(object sender)
         {
-            var recognizer = _recognizer;
+            return sender is WasapiLoopbackCapture ? SpeakerKind.Remote : SpeakerKind.You;
+        }
+
+        /// <summary>
+        /// 録音デバイスのコールバックとファイル入力のポンプで共通に使う。
+        /// 取り込んだ音を 16kHz モノラルへ変換して、系統に合う認識器へ積む。
+        /// </summary>
+        private void PushAudio(float[] samples, int sampleRate, int channels, SpeakerKind speaker)
+        {
+            var recognizer = speaker == SpeakerKind.You ? _recognizerYou : _recognizerRemote;
             if (recognizer == null || samples.Length == 0)
             {
                 return;
@@ -590,11 +788,11 @@ namespace WinRealtimeWhisper
             double rmsDb = rms > 0 ? 20 * Math.Log10(rms) : -96;
 
             string extra = string.Empty;
-            var r = _recognizer;
-            if (r != null)
+            var recognizers = Recognizers;
+            if (recognizers.Length > 0)
             {
                 extra = string.Format(" rtf={0:F2} chunks={1} dropped={2}",
-                    RealTimeFactor, r.InferenceCount, r.DroppedChunks);
+                    RealTimeFactor, InferenceCount, DroppedChunks);
             }
 
             DiagLog.Write(string.Format(
@@ -759,6 +957,7 @@ namespace WinRealtimeWhisper
         }
 
         /// <summary>Whisper の推論スレッドから呼ばれる。確定テキストとして UI へ流す。</summary>
+        /// <summary>Whisper の推論スレッドから呼ばれる。確定テキストとして UI へ流す。</summary>
         private void OnSegmentReady(object sender, WhisperSegmentResult e)
         {
             if (string.IsNullOrEmpty(e.Text))
@@ -771,6 +970,69 @@ namespace WinRealtimeWhisper
             {
                 handler(this, new FinalTextEventArgs(e.Text, e.Offset.Ticks));
             }
+        }
+
+        /// <summary>スピーカー（ループバック）からの確定テキスト。</summary>
+        private void OnRemoteSegmentReady(object sender, WhisperSegmentResult e)
+        {
+            OnSegment(e, SpeakerRemote, inferUnknownSpeaker: false);
+        }
+
+        /// <summary>マイクからの確定テキスト。</summary>
+        private void OnYouSegmentReady(object sender, WhisperSegmentResult e)
+        {
+            OnSegment(e, SpeakerYou, inferUnknownSpeaker: false);
+        }
+
+        /// <summary>
+        /// 確定した 1 区間を、話者を付けて配る。
+        /// ファイル入力のように話者が分からない場合はラベルを付けない。
+        /// </summary>
+        private void OnSegment(WhisperSegmentResult e, string speaker, bool inferUnknownSpeaker)
+        {
+            if (string.IsNullOrEmpty(e.Text))
+            {
+                return;
+            }
+
+            string label = speaker;
+            if (!inferUnknownSpeaker && !ShouldLabelSpeaker())
+            {
+                label = null;
+            }
+
+            TimeSpan duration = e.Duration > TimeSpan.Zero
+                ? e.Duration
+                : EstimateDuration(e.Text);
+
+            var vtt = _vtt;
+            if (vtt != null)
+            {
+                vtt.WriteCue(e.Offset, duration, e.Text, label);
+            }
+
+            var handler = FinalText;
+            if (handler != null)
+            {
+                handler(this, new FinalTextEventArgs(e.Text, e.Offset.Ticks, label, duration));
+            }
+        }
+
+        /// <summary>
+        /// 話者ラベルを付けるか。両方の系統を録音しているときだけ意味がある。
+        /// 片方だけなら「誰が話したか」は自明なので付けない。
+        /// </summary>
+        private bool ShouldLabelSpeaker()
+        {
+            return _recognizerRemote != null && _recognizerYou != null;
+        }
+
+        /// <summary>区間の長さが取れないときの目安。日本語の話速から約 7 文字/秒で見積もる。</summary>
+        private static TimeSpan EstimateDuration(string text)
+        {
+            int chars = string.IsNullOrEmpty(text) ? 0 : text.Length;
+            double seconds = Math.Max(1.0, chars / 7.0);
+            return TimeSpan.FromSeconds(Math.Min(seconds, 30));
         }
 
         private async Task StopCoreAsync()
@@ -815,24 +1077,29 @@ namespace WinRealtimeWhisper
 
             // 未処理の音声を全部推論してから終わる。
             // ここを待たないと、停止直前の発話が落ちる。
-            var recognizer = _recognizer;
-            if (recognizer != null)
+            var pending = Recognizers;
+            if (pending.Length > 0)
             {
                 RaiseStatus(Loc.T("status.flushing"));
                 DiagLog.Write("[whisper] flushing remaining audio...");
 
                 try
                 {
-                    await Task.Run(() => recognizer.Flush()).ConfigureAwait(false);
+                    // 系統ごとに別スレッドで流す。待ち時間は長い方に合わせる。
+                    await Task.WhenAll(Array.ConvertAll(pending,
+                        r => Task.Run(() => r.Flush()))).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     RaiseError(Loc.T("cli.stopFailed", Describe(ex)), ex);
                 }
 
-                DiagLog.Write(string.Format(
-                    "[whisper] stopped: chunks={0} totalInfer={1}ms dropped={2}",
-                    recognizer.InferenceCount, recognizer.TotalInferenceMs, recognizer.DroppedChunks));
+                foreach (var r in pending)
+                {
+                    DiagLog.Write(string.Format(
+                        "[whisper] stopped: chunks={0} totalInfer={1}ms dropped={2}",
+                        r.InferenceCount, r.TotalInferenceMs, r.DroppedChunks));
+                }
             }
 
             string wavPath = _wavPath;
@@ -930,18 +1197,50 @@ namespace WinRealtimeWhisper
             {
             }
 
-            if (_recognizer != null)
+            if (_recognizerRemote != null)
             {
                 try
                 {
-                    _recognizer.ResultReady -= OnSegmentReady;
+                    _recognizerRemote.ResultReady -= OnRemoteSegmentReady;
                 }
                 catch (Exception)
                 {
                 }
 
-                _recognizer.Dispose();
-                _recognizer = null;
+                _recognizerRemote.Dispose();
+                _recognizerRemote = null;
+            }
+
+            if (_recognizerYou != null)
+            {
+                try
+                {
+                    _recognizerYou.ResultReady -= OnYouSegmentReady;
+                }
+                catch (Exception)
+                {
+                }
+
+                _recognizerYou.Dispose();
+                _recognizerYou = null;
+            }
+
+            if (_sharedModel != null)
+            {
+                _sharedModel.Dispose();
+                _sharedModel = null;
+            }
+
+            if (_vttHeartbeat != null)
+            {
+                _vttHeartbeat.Dispose();
+                _vttHeartbeat = null;
+            }
+
+            if (_vtt != null)
+            {
+                _vtt.Dispose();
+                _vtt = null;
             }
         }
 
@@ -973,6 +1272,30 @@ namespace WinRealtimeWhisper
             }
 
             CleanupAfterStop();
+        }
+    }
+
+    /// <summary>
+    /// Whisper のモデル重みを 1 回だけ読み込み、複数の認識器で共有するための入れ物。
+    /// 系統ごとに認識器を作っても、メモリは 1 つ分で済む。
+    /// </summary>
+    internal sealed class SharedWhisperModel : IDisposable
+    {
+        public SharedWhisperModel(string modelPath, bool preferGpu)
+        {
+            Factory = WhisperRunner.CreateFactory(modelPath, preferGpu);
+        }
+
+        /// <summary>共有するファクトリ。認識器側はこれを破棄しない。</summary>
+        public WhisperFactory Factory { get; private set; }
+
+        public void Dispose()
+        {
+            if (Factory != null)
+            {
+                Factory.Dispose();
+                Factory = null;
+            }
         }
     }
 

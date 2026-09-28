@@ -52,7 +52,11 @@ namespace WinRealtimeWhisper
                 wavPath = options.ResolveWavPath(session.StartedAt);
             }
 
-            return Execute(options, settings, modelPath, session, textPath, wavPath);
+            // VTT の保存先はエンジンが決めるので、設定から先に場所を組み立てる。
+            string vttPath = settings.VttEnabled ? VttTranscriptWriter.PredictFinalPath(
+                settings.ResolveVttDirectory(), session.StartedAt) : null;
+
+            return Execute(options, settings, modelPath, session, textPath, wavPath, vttPath);
         }
 
         private static int Execute(
@@ -61,7 +65,8 @@ namespace WinRealtimeWhisper
             string modelPath,
             TranscriptionSession session,
             string textPath,
-            string wavPath)
+            string wavPath,
+            string vttPath)
         {
             var stop = new ManualResetEventSlim(false);
             bool failed = false;
@@ -228,7 +233,7 @@ namespace WinRealtimeWhisper
                 }
             }
 
-            Report(session, textPath, wavPath, options);
+            Report(session, textPath, wavPath, vttPath);
 
             if (failed)
             {
@@ -243,7 +248,7 @@ namespace WinRealtimeWhisper
             TranscriptionSession session,
             string textPath,
             string wavPath,
-            CommandLineOptions options)
+            string vttPath)
         {
             Console.WriteLine();
             Console.WriteLine(Loc.T("cli.resultHeader"));
@@ -254,6 +259,11 @@ namespace WinRealtimeWhisper
             {
                 long bytes = new FileInfo(wavPath).Length;
                 Console.WriteLine(Loc.T("cli.resultWav", wavPath, bytes / 1024));
+            }
+
+            if (vttPath != null && File.Exists(vttPath))
+            {
+                Console.WriteLine(Loc.T("cli.resultVtt", vttPath));
             }
         }
 

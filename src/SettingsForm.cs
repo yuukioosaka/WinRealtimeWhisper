@@ -33,10 +33,13 @@ namespace WinRealtimeWhisper
         private TextBox _txtWavDir;
         private TextBox _txtModelDir;
         private TextBox _txtLogDir;
+        private TextBox _txtVttDir;
+        private CheckBox _chkVtt;
         private Button _btnHistoryDir;
         private Button _btnWavDir;
         private Button _btnModelDir;
         private Button _btnLogDir;
+        private Button _btnVttDir;
         private Button _btnOk;
         private Button _btnCancel;
         private ProgressBar _progress;
@@ -420,12 +423,12 @@ namespace WinRealtimeWhisper
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 3,
-                RowCount = 4
+                RowCount = 6
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 6; i++)
             {
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             }
@@ -442,6 +445,19 @@ namespace WinRealtimeWhisper
             _txtLogDir = AddPathRow(layout, 3, "settings.storage.logLabel",
                 _settings.LogDirectory, _settings.ResolveLogDirectory,
                 out _btnLogDir);
+
+            _txtVttDir = AddPathRow(layout, 4, "settings.storage.vttLabel",
+                _settings.VttDirectory, _settings.ResolveVttDirectory,
+                out _btnVttDir);
+
+            _chkVtt = new CheckBox
+            {
+                Text = Loc.T("settings.storage.vttEnabled"),
+                AutoSize = true,
+                Margin = new Padding(3, 6, 3, 2)
+            };
+            layout.Controls.Add(_chkVtt, 0, 5);
+            layout.SetColumnSpan(_chkVtt, 3);
 
             page.Controls.Add(layout);
             return page;
@@ -580,6 +596,10 @@ namespace WinRealtimeWhisper
             _txtLogDir.Text = string.IsNullOrWhiteSpace(_settings.LogDirectory)
                 ? _settings.ResolveLogDirectory()
                 : _settings.LogDirectory;
+            _txtVttDir.Text = string.IsNullOrWhiteSpace(_settings.VttDirectory)
+                ? _settings.ResolveVttDirectory()
+                : _settings.VttDirectory;
+            _chkVtt.Checked = _settings.VttEnabled;
 
             UpdateModelState();
             UpdateEnabled();
@@ -870,6 +890,8 @@ namespace WinRealtimeWhisper
             _settings.WavDirectory = KeepIfNotDefault(_txtWavDir.Text, DefaultWavDirectory());
             _settings.ModelDirectory = KeepIfNotDefault(_txtModelDir.Text, DefaultModelDirectory());
             _settings.LogDirectory = KeepIfNotDefault(_txtLogDir.Text, DefaultLogDirectory());
+            _settings.VttDirectory = KeepIfNotDefault(_txtVttDir.Text, DefaultVttDirectory());
+            _settings.VttEnabled = _chkVtt.Checked;
         }
 
         /// <summary>入力が既定パスと同じなら空（未設定）を返す。</summary>
@@ -918,6 +940,14 @@ namespace WinRealtimeWhisper
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "WinRealtimeWhisper",
                 "logs");
+        }
+
+        private static string DefaultVttDirectory()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WinRealtimeWhisper",
+                "transcripts");
         }
     }
 }

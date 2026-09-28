@@ -64,15 +64,24 @@ namespace WinRealtimeWhisper
     internal sealed class WhisperSegmentResult
     {
         public WhisperSegmentResult(string text, TimeSpan offset)
+            : this(text, offset, TimeSpan.Zero)
+        {
+        }
+
+        public WhisperSegmentResult(string text, TimeSpan offset, TimeSpan duration)
         {
             Text = text;
             Offset = offset;
+            Duration = duration;
         }
 
         public string Text { get; private set; }
 
         /// <summary>録音開始からの相対時刻。</summary>
         public TimeSpan Offset { get; private set; }
+
+        /// <summary>区間の長さ。0 のときは不明。</summary>
+        public TimeSpan Duration { get; private set; }
 
         public override string ToString()
         {
@@ -130,6 +139,19 @@ namespace WinRealtimeWhisper
 
             _options = options;
         }
+
+        /// <summary>
+        /// 読み込み済みのファクトリを共有して使う。複数の録音系統で
+        /// 同一モデルを使い回すとき、モデルのメモリを 1 つ分に抑えられる。
+        /// </summary>
+        public WhisperRecognizer(WhisperOptions options, WhisperFactory factory)
+            : this(options)
+        {
+            _sharedFactory = factory;
+        }
+
+        /// <summary>共有する場合のファクトリ。null なら Initialize で自前ロードする。</summary>
+        private readonly WhisperFactory _sharedFactory;
 
         /// <summary>実際に使われた推論スレッド数。</summary>
         public int EffectiveThreads
@@ -214,7 +236,7 @@ namespace WinRealtimeWhisper
         public void Initialize()
         {
             string modelPath = _options.ModelPath;
-            if (string.IsNullOrEmpty(modelPath) || !File.Exists(modelPath))
+            if (_sharedFactory == null && (string.IsNullOrEmpty(modelPath) || !File.Exists(modelPath)))
             {
                 throw new FileNotFoundException(
                     "Whisper のモデルファイルが見つかりません: " + modelPath, modelPath);
@@ -224,11 +246,20 @@ namespace WinRealtimeWhisper
                 ? _options.Threads
                 : Math.Max(1, Math.Min(8, Environment.ProcessorCount / 2 + 1));
 
-            DiagLog.Write("[whisper] model=" + modelPath
-                + " (" + new FileInfo(modelPath).Length / (1024 * 1024) + " MB)");
+            if (_sharedFactory != null)
+            {
+                DiagLog.Write("[whisper] reusing shared factory (threads=" + threads + ")");
+            }
+            else
+            {
+                DiagLog.Write("[whisper] model=" + modelPath
+                    + " (" + new FileInfo(modelPath).Length / (1024 * 1024) + " MB)");
+            }
 
             var sw = Stopwatch.StartNew();
-            _runner = new WhisperRunner(modelPath, threads, _options.Language, _options.PreferGpu);
+            _runner = _sharedFactory != null
+                ? new WhisperRunner(_sharedFactory, threads, _options.Language)
+                : new WhisperRunner(modelPath, threads, _options.Language, _options.PreferGpu);
             sw.Stop();
 
             DiagLog.Write("[whisper] model loaded in " + sw.ElapsedMilliseconds + " ms");
@@ -566,7 +597,8 @@ namespace WinRealtimeWhisper
             var handler = ResultReady;
             if (handler != null)
             {
-                handler(this, new WhisperSegmentResult(clean, item.Offset));
+                handler(this, new WhisperSegmentResult(
+                    clean, item.Offset, TimeSpan.FromSeconds(seconds)));
             }
         }
 
@@ -669,6 +701,7 @@ namespace WinRealtimeWhisper
         private static readonly object _runtimeSync = new object();
 
         private readonly WhisperFactory _factory;
+        private readonly bool _ownsFactory;
         private readonly string _language;
         private readonly object _sync = new object();
 
@@ -684,9 +717,47 @@ namespace WinRealtimeWhisper
             }
 
             _factory = WhisperFactory.FromPath(modelPath);
+            _ownsFactory = true;
             _language = string.IsNullOrEmpty(language) ? "ja" : language;
             Threads = threads;
             RuntimeInfo = WhisperFactory.GetRuntimeInfo();
+        }
+
+        /// <summary>
+        /// 既に読み込み済みのファクトリを共有する。モデルは 1 回だけロードされ、
+        /// 複数の録音系統（スピーカー/マイク）で同じ重みを使い回せる。
+        /// このインスタンスはファクトリを破棄しない。
+        /// </summary>
+        public WhisperRunner(WhisperFactory factory, int threads, string language)
+        {
+            if (factory == null)
+            {
+                throw new ArgumentNullException("factory");
+            }
+
+            _factory = factory;
+            _ownsFactory = false;
+            _language = string.IsNullOrEmpty(language) ? "ja" : language;
+            Threads = threads;
+            RuntimeInfo = WhisperFactory.GetRuntimeInfo();
+        }
+
+        /// <summary>
+        /// モデルを 1 回だけ読み込むためのファクトリ。
+        /// 複数系統で使うときに、これを共有して <see cref="WhisperRunner(WhisperFactory,int,string)"/> に渡す。
+        /// </summary>
+        public static WhisperFactory CreateFactory(string modelPath, bool preferGpu)
+        {
+            lock (_runtimeSync)
+            {
+                if (!_runtimeConfigured)
+                {
+                    ConfigureRuntime(preferGpu);
+                    _runtimeConfigured = true;
+                }
+            }
+
+            return WhisperFactory.FromPath(modelPath);
         }
 
         public int Threads { get; private set; }
@@ -751,7 +822,10 @@ namespace WinRealtimeWhisper
 
         public void Dispose()
         {
-            _factory.Dispose();
+            if (_ownsFactory)
+            {
+                _factory.Dispose();
+            }
         }
     }
 }

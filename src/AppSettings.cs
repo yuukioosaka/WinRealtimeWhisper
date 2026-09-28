@@ -96,6 +96,21 @@ namespace WinRealtimeWhisper
         /// <summary>ウィンドウを常に手前に出すか。</summary>
         public bool AlwaysOnTop { get; set; }
 
+        /// <summary>
+        /// 録音中に WebVTT（ライブ文字起こし）を書き出すか。
+        /// 外部のチェックリスト/感情分析アプリがこのファイルを tail する。
+        /// </summary>
+        public bool VttEnabled { get; set; }
+
+        /// <summary>
+        /// ライブ文字起こし(VTT)の保存先。空なら既定の
+        /// %LOCALAPPDATA%\WinRealtimeWhisper\transcripts。
+        /// </summary>
+        public string VttDirectory { get; set; }
+
+        /// <summary>VTT に書き出す heartbeat の間隔（秒）。</summary>
+        public double VttHeartbeatSeconds { get; set; }
+
         public AppSettings()
         {
             ModelPath = string.Empty;
@@ -114,6 +129,9 @@ namespace WinRealtimeWhisper
             ModelDirectory = string.Empty;
             LogDirectory = string.Empty;
             AlwaysOnTop = false;
+            VttEnabled = true;
+            VttDirectory = string.Empty;
+            VttHeartbeatSeconds = 5.0;
         }
 
         /// <summary>テキスト（履歴）の保存先。未設定なら既定値。</summary>
@@ -158,6 +176,29 @@ namespace WinRealtimeWhisper
                     "WinRealtimeWhisper",
                     "logs")
                 : LogDirectory;
+        }
+
+        /// <summary>ライブ文字起こし(VTT)の保存先。未設定なら既定値。</summary>
+        public string ResolveVttDirectory()
+        {
+            return string.IsNullOrWhiteSpace(VttDirectory)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "WinRealtimeWhisper",
+                    "transcripts")
+                : VttDirectory;
+        }
+
+        /// <summary>heartbeat の間隔。範囲外なら既定値。</summary>
+        public TimeSpan ResolveVttHeartbeat()
+        {
+            double seconds = VttHeartbeatSeconds;
+            if (seconds < 1 || seconds > 60)
+            {
+                seconds = 5.0;
+            }
+
+            return TimeSpan.FromSeconds(seconds);
         }
 
         /// <summary>設定と Windows の表示言語から、使う表示言語を決める。</summary>
@@ -229,6 +270,27 @@ namespace WinRealtimeWhisper
                     if (values.TryGetValue("WavDirectory", out v)) s.WavDirectory = v;
                     if (values.TryGetValue("ModelDirectory", out v)) s.ModelDirectory = v;
                     if (values.TryGetValue("LogDirectory", out v)) s.LogDirectory = v;
+                    if (values.TryGetValue("VttDirectory", out v)) s.VttDirectory = v;
+
+                    if (values.TryGetValue("VttEnabled", out v))
+                    {
+                        bool vtt;
+                        if (bool.TryParse(v, out vtt))
+                        {
+                            s.VttEnabled = vtt;
+                        }
+                    }
+
+                    if (values.TryGetValue("VttHeartbeatSeconds", out v))
+                    {
+                        double hb;
+                        if (double.TryParse(v, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out hb)
+                            && hb >= 1 && hb <= 60)
+                        {
+                            s.VttHeartbeatSeconds = hb;
+                        }
+                    }
 
                     if (values.TryGetValue("AlwaysOnTop", out v))
                     {
@@ -321,6 +383,10 @@ namespace WinRealtimeWhisper
             AppendValue(sb, "WavDirectory", WavDirectory, true);
             AppendValue(sb, "ModelDirectory", ModelDirectory, true);
             AppendValue(sb, "LogDirectory", LogDirectory, true);
+            AppendValue(sb, "VttDirectory", VttDirectory, true);
+            sb.AppendLine("  \"VttEnabled\": " + (VttEnabled ? "true" : "false") + ",");
+            sb.AppendLine("  \"VttHeartbeatSeconds\": " + VttHeartbeatSeconds.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) + ",");
             sb.AppendLine("  \"AlwaysOnTop\": " + (AlwaysOnTop ? "true" : "false") + ",");
             sb.AppendLine("  \"LatencyProfile\": " + LatencyProfile + ",");
             sb.AppendLine("  \"MaxChunkSeconds\": " + MaxChunkSeconds.ToString(

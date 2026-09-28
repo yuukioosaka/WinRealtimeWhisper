@@ -17,13 +17,31 @@ namespace WinRealtimeWhisper
     internal sealed class FinalTextEventArgs : EventArgs
     {
         public FinalTextEventArgs(string text, long offsetTicks)
+            : this(text, offsetTicks, null)
+        {
+        }
+
+        public FinalTextEventArgs(string text, long offsetTicks, string speaker)
+            : this(text, offsetTicks, speaker, TimeSpan.Zero)
+        {
+        }
+
+        public FinalTextEventArgs(string text, long offsetTicks, string speaker, TimeSpan duration)
         {
             Text = text;
             OffsetTicks = offsetTicks;
+            Speaker = speaker;
+            Duration = duration;
         }
 
         public string Text { get; private set; }
         public long OffsetTicks { get; private set; }
+
+        /// <summary>話者。スピーカー("Remote") / マイク("You")。不明なら null。</summary>
+        public string Speaker { get; private set; }
+
+        /// <summary>発話のおおよその長さ。VTT の終了時刻に使う。</summary>
+        public TimeSpan Duration { get; private set; }
     }
 
     internal sealed class StatusEventArgs : EventArgs
