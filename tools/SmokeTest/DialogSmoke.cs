@@ -34,6 +34,9 @@ namespace WinRealtimeWhisperSmokeTest
                         + " out='" + settings.OutputDeviceId + "'"
                         + " in='" + settings.InputDeviceId + "'"
                         + " model=" + settings.ModelPath);
+                    Console.WriteLine("  recognition: language=" + settings.WhisperLanguage
+                        + " maxChunk=" + settings.MaxChunkSeconds
+                        + " silence=" + settings.SilenceSplitSeconds);
                     Console.WriteLine("  storage: text='" + settings.ResolveHistoryDirectory()
                         + "' wav='" + settings.ResolveWavDirectory() + "'");
 
@@ -47,6 +50,23 @@ namespace WinRealtimeWhisperSmokeTest
                     }
 
                     f.Hide();
+
+                    // 保存して読み直しても、新しい 2 項目が落ちないか。
+                    settings.SilenceSplitSeconds = 1.25;
+                    settings.WhisperLanguage = "en";
+                    settings.Save();
+                    var reloaded = AppSettings.Load();
+                    if (reloaded.WhisperLanguage != "en"
+                        || Math.Abs(reloaded.SilenceSplitSeconds - 1.25) > 0.001)
+                    {
+                        Console.WriteLine("FAILED: 認識言語 / 無音の区切りが保存されません"
+                            + " language=" + reloaded.WhisperLanguage
+                            + " silence=" + reloaded.SilenceSplitSeconds);
+                        return 1;
+                    }
+
+                    Console.WriteLine("  reload: language=" + reloaded.WhisperLanguage
+                        + " silence=" + reloaded.SilenceSplitSeconds);
                 }
 
                 // 区切りサイクルの選択肢と反映

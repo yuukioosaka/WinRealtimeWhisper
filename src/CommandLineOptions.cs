@@ -341,8 +341,8 @@ namespace WinRealtimeWhisper
             w.WriteLine("  -m, --model <名前|パス> ggml モデル。名前だけなら既定のフォルダから探します。");
             w.WriteLine("      --model-dir <フォルダ>  モデルの置き場を上書きします。");
             w.WriteLine("  -l, --language <コード> Whisper の言語。日本語は ja。");
-            w.WriteLine("      --max-chunk <秒>     認識区間の最大長 (2〜30, 既定 6)。");
-            w.WriteLine("      --silence <秒>       無音がこの長さ続いたら区切る (0.2〜3, 既定 0.45)。");
+            w.WriteLine("      --max-chunk <秒>     認識区間の最大長 (2〜30, 既定 30)。");
+            w.WriteLine("      --silence <秒>       無音がこの長さ続いたら区切る (0.2〜3, 既定 0.2)。");
             w.WriteLine();
             w.WriteLine("その他:");
             w.WriteLine("      --list-devices       利用できる録音デバイスを一覧して終了します。");
@@ -385,8 +385,8 @@ namespace WinRealtimeWhisper
             w.WriteLine("  -m, --model <name|path> ggml model. A bare name is looked up in the default folder.");
             w.WriteLine("      --model-dir <folder>  Override the model folder.");
             w.WriteLine("  -l, --language <code>   Whisper language. Japanese is ja.");
-            w.WriteLine("      --max-chunk <sec>   Longest recognition segment (2-30, default 6).");
-            w.WriteLine("      --silence <sec>     Split after this much silence (0.2-3, default 0.45).");
+            w.WriteLine("      --max-chunk <sec>   Longest recognition segment (2-30, default 30).");
+            w.WriteLine("      --silence <sec>     Split after this much silence (0.2-3, default 0.2).");
             w.WriteLine();
             w.WriteLine("Other:");
             w.WriteLine("      --list-devices      List the available recording devices and exit.");

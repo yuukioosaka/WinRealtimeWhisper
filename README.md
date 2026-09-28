@@ -52,7 +52,7 @@ dropping to `base` or `tiny` makes a large difference.
 | Tab | What you can set |
 | --- | --- |
 | General | Display language (Japanese / English) |
-| Audio | Toggle loopback output and microphone capture, choose the devices, and set the **segment cycle** (5 / 10 / 15 / 30 s) |
+| Audio | Toggle loopback output and microphone capture, choose the devices, and set the **segment cycle** (5 / 10 / 15 / 30 s), the **silence split** (0.20-3.00 s) and the **recognition language** |
 | Model | The ggml model to use, and download |
 | Storage | Folders for text / WAV / models / logs (use **Browse** to change them) |
 
@@ -62,13 +62,21 @@ Output and input devices can be chosen independently.
 The **segment cycle** is how many seconds of audio go into one recognition pass.
 Shorter means faster display but less context and lower accuracy. The default is 30 s.
 
+The **silence split** is how long a pause must last before speech is cut into a new
+segment (0.20-3.00 s). Shorter means finer segments and faster display, but words are
+more likely to be cut in half. The default is 0.20 s.
+
+The **recognition language** is the spoken language (Japanese / English / Chinese /
+Korean / detect automatically). The default is Japanese. It is separate from the
+display language on the General tab.
+
 **View > Always on top** keeps the window above other windows. That setting is
 saved too and is restored the next time you start the app.
 
 A display-language change takes effect **the next time you start the app**.
-The recognition language (spoken language) stays Japanese.
+The recognition language can be changed on the **Audio** tab and is separate from it.
 
-Recognition waits for a speech pause (0.8 s of silence) before it runs, so
+Recognition waits for a speech pause ("Silence split", default 0.20 s) before it runs, so
 text appears roughly 1–3 seconds after you stop speaking. If no silence
 arrives, a segment is cut at the configured segment cycle (default 30 s).
 

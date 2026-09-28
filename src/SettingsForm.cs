@@ -22,7 +22,9 @@ namespace WinRealtimeWhisper
         private CheckBox _chkUseInput;
         private ComboBox _cmbModel;
         private ComboBox _cmbLanguage;
+        private ComboBox _cmbWhisperLanguage;
         private ComboBox _cmbCycle;
+        private NumericUpDown _numSilence;
         private Label _lblModelState;
 
         private Button _btnDownload;
@@ -44,6 +46,16 @@ namespace WinRealtimeWhisper
         /// <summary>区切りのサイクル（秒）。短いほど表示が速いが、精度は落ちる。</summary>
         internal static readonly int[] CycleChoices = { 5, 10, 15, 30 };
 
+        /// <summary>認識させる言語（Whisper に渡すコード）。--language と同じ範囲。</summary>
+        internal static readonly string[,] WhisperLanguageChoices =
+        {
+            { "ja", "settings.audio.whisperLang.ja" },
+            { "en", "settings.audio.whisperLang.en" },
+            { "zh", "settings.audio.whisperLang.zh" },
+            { "ko", "settings.audio.whisperLang.ko" },
+            { "auto", "settings.audio.whisperLang.auto" }
+        };
+
         /// <summary>区切りサイクルのコンボの 1 項目。</summary>
         private sealed class CycleItem
         {
@@ -57,6 +69,24 @@ namespace WinRealtimeWhisper
             public override string ToString()
             {
                 return Loc.T("settings.audio.cycleItem", Seconds);
+            }
+        }
+
+        /// <summary>認識言語コンボの 1 項目。</summary>
+        private sealed class WhisperLanguageItem
+        {
+            public WhisperLanguageItem(string code, string labelKey)
+            {
+                Code = code;
+                LabelKey = labelKey;
+            }
+
+            public string Code { get; private set; }
+            public string LabelKey { get; private set; }
+
+            public override string ToString()
+            {
+                return string.IsNullOrEmpty(LabelKey) ? Code : Loc.T(LabelKey);
             }
         }
 
@@ -146,7 +176,7 @@ namespace WinRealtimeWhisper
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 7
+                RowCount = 11
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -178,6 +208,43 @@ namespace WinRealtimeWhisper
 
             layout.Controls.Add(_cmbCycle, 1, 4);
 
+            layout.Controls.Add(NewLabel(Loc.T("settings.audio.silence")), 0, 5);
+            _numSilence = new NumericUpDown
+            {
+                DecimalPlaces = 2,
+                Minimum = 0.20M,
+                Maximum = 3.00M,
+                Increment = 0.05M,
+                Width = 90,
+                Margin = new Padding(3, 2, 3, 8)
+            };
+            layout.Controls.Add(_numSilence, 1, 5);
+
+            layout.Controls.Add(NewLabel(Loc.T("settings.audio.whisperLanguage")), 0, 6);
+            _cmbWhisperLanguage = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 200,
+                Margin = new Padding(3, 2, 3, 8)
+            };
+            for (int i = 0; i < WhisperLanguageChoices.GetLength(0); i++)
+            {
+                _cmbWhisperLanguage.Items.Add(new WhisperLanguageItem(
+                    WhisperLanguageChoices[i, 0], WhisperLanguageChoices[i, 1]));
+            }
+            layout.Controls.Add(_cmbWhisperLanguage, 1, 6);
+
+            var silenceNote = new Label
+            {
+                AutoSize = true,
+                MaximumSize = new Size(500, 0),
+                Margin = new Padding(3, 0, 3, 8),
+                ForeColor = Color.DimGray,
+                Text = Loc.T("settings.audio.silenceNote")
+            };
+            layout.Controls.Add(silenceNote, 0, 7);
+            layout.SetColumnSpan(silenceNote, 2);
+
             var cycleNote = new Label
             {
                 AutoSize = true,
@@ -186,7 +253,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.cycleNote")
             };
-            layout.Controls.Add(cycleNote, 0, 5);
+            layout.Controls.Add(cycleNote, 0, 8);
             layout.SetColumnSpan(cycleNote, 2);
 
             var note = new Label
@@ -197,7 +264,7 @@ namespace WinRealtimeWhisper
                 ForeColor = Color.DimGray,
                 Text = Loc.T("settings.audio.note")
             };
-            layout.Controls.Add(note, 0, 6);
+            layout.Controls.Add(note, 0, 9);
             layout.SetColumnSpan(note, 2);
 
             page.Controls.Add(layout);
@@ -463,6 +530,13 @@ namespace WinRealtimeWhisper
             SelectModelInCombo(_settings.ModelPath);
             SelectCycleInCombo(_settings.MaxChunkSeconds);
 
+            decimal silence = (decimal)_settings.SilenceSplitSeconds;
+            if (silence < _numSilence.Minimum) silence = _numSilence.Minimum;
+            if (silence > _numSilence.Maximum) silence = _numSilence.Maximum;
+            _numSilence.Value = silence;
+
+            SelectWhisperLanguageInCombo(_settings.WhisperLanguage);
+
             // 未設定でも実際に使われる既定のパスを初期表示する。
             _txtHistoryDir.Text = string.IsNullOrWhiteSpace(_settings.HistoryDirectory)
                 ? _settings.ResolveHistoryDirectory()
@@ -557,6 +631,31 @@ namespace WinRealtimeWhisper
             }
 
             _cmbModel.Text = modelPath ?? string.Empty;
+        }
+
+        /// <summary>認識言語に一致する項目を選ぶ。未知のコードはそのまま追加して選ぶ。</summary>
+        private void SelectWhisperLanguageInCombo(string code)
+        {
+            string value = (code ?? string.Empty).Trim();
+            if (value.Length == 0)
+            {
+                value = "ja";
+            }
+
+            for (int i = 0; i < _cmbWhisperLanguage.Items.Count; i++)
+            {
+                var item = _cmbWhisperLanguage.Items[i] as WhisperLanguageItem;
+                if (item != null && string.Equals(item.Code, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    _cmbWhisperLanguage.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            // 表に無いコード（設定ファイルの手編集）も失わないようにする。
+            var custom = new WhisperLanguageItem(value, null);
+            _cmbWhisperLanguage.Items.Add(custom);
+            _cmbWhisperLanguage.SelectedItem = custom;
         }
 
         /// <summary>現在のサイクルに最も近い選択肢を選ぶ。</summary>
@@ -724,6 +823,14 @@ namespace WinRealtimeWhisper
             if (cycle != null)
             {
                 _settings.MaxChunkSeconds = cycle.Seconds;
+            }
+
+            _settings.SilenceSplitSeconds = (double)_numSilence.Value;
+
+            var whisperLanguage = _cmbWhisperLanguage.SelectedItem as WhisperLanguageItem;
+            if (whisperLanguage != null)
+            {
+                _settings.WhisperLanguage = whisperLanguage.Code;
             }
 
             // 既定のパスと同じなら「未設定」として保存する。
